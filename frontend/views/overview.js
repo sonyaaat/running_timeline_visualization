@@ -211,33 +211,51 @@ export function renderOverview() {
     .style("pointer-events", "none")
     .text(`${Math.round(maxKm)} km/w`);
 
-  // ── Efficiency line (if HR data available) ──
-  if (meta.has_hr) {
-    const effData = weekly
-      .map((w, i) => ({ weekIdx: i + 0.5, eff: w.efficiency }))
-      .filter(d => d.eff != null && !isNaN(d.eff));
+  // ── Pace trend line (4-week rolling average, inverted: lower pace = higher on chart) ──
+  const rawPace = weekly.map((w, i) => ({
+    weekIdx: i + 0.5,
+    pace: (w.avg_pace != null && w.run_count > 0) ? w.avg_pace : null
+  }));
 
-    if (effData.length > 1) {
-      const [eMin, eMax] = d3.extent(effData, d => d.eff);
-      const ePad = (eMax - eMin) * 0.1 || 0.001;
-      const yEff = d3.scaleLinear()
-        .domain([eMin - ePad, eMax + ePad])
-        .range([CHART_H - 6, 6]);
+  // 4-week rolling average over active weeks only
+  const paceTrend = rawPace.map((d, i, arr) => {
+    const window = arr.slice(Math.max(0, i - 3), i + 1).filter(v => v.pace != null);
+    if (window.length === 0) return { weekIdx: d.weekIdx, pace: null };
+    return { weekIdx: d.weekIdx, pace: window.reduce((s, v) => s + v.pace, 0) / window.length };
+  }).filter(d => d.pace != null);
 
-      const effLine = d3.line()
-        .x(d => x(d.weekIdx))
-        .y(d => yEff(d.eff))
-        .curve(d3.curveMonotoneX);
+  if (paceTrend.length > 1) {
+    const [pMin, pMax] = d3.extent(paceTrend, d => d.pace);
+    const pPad = (pMax - pMin) * 0.15 || 0.1;
+    // Inverted: lower pace (faster) = higher on chart
+    const yPace = d3.scaleLinear()
+      .domain([pMax + pPad, pMin - pPad])
+      .range([CHART_H - 6, 6]);
 
-      chartG.append("path")
-        .datum(effData)
-        .attr("fill", "none")
-        .attr("stroke", "#7C3AED")
-        .attr("stroke-width", 1)
-        .attr("stroke-dasharray", "3 2")
-        .attr("opacity", 0.6)
-        .attr("d", effLine);
-    }
+    const paceLine = d3.line()
+      .x(d => x(d.weekIdx))
+      .y(d => yPace(d.pace))
+      .curve(d3.curveMonotoneX);
+
+    chartG.append("path")
+      .datum(paceTrend)
+      .attr("fill", "none")
+      .attr("stroke", "#F97316")
+      .attr("stroke-width", 1.5)
+      .attr("opacity", 0.75)
+      .attr("d", paceLine);
+
+    // Pace label (best pace = lowest value)
+    const bestPace = pMin;
+    const mins = Math.floor(bestPace);
+    const secs = Math.round((bestPace - mins) * 60);
+    chartG.append("text")
+      .attr("x", 4).attr("y", CHART_H - 4)
+      .style("font-size", "11px")
+      .style("fill", "#F97316")
+      .style("opacity", "0.8")
+      .style("pointer-events", "none")
+      .text(`${mins}:${String(secs).padStart(2, "0")} best pace`);
   }
 
   // Bottom axis line
@@ -328,14 +346,30 @@ export function renderOverview() {
   const legendG = root.append("g")
     .attr("transform", `translate(4,${STRIP_H + CHART_H + MONTH_H})`);
 
-  let legendText = "▬ km/week";
-  if (meta.has_hr) legendText += "   – – efficiency (pace/HR)";
-
+  // km/week swatch
+  legendG.append("rect")
+    .attr("x", 0).attr("y", 4)
+    .attr("width", 12).attr("height", 3)
+    .attr("rx", 1)
+    .attr("fill", "rgba(99,102,241,0.5)");
   legendG.append("text")
-    .attr("y", 12)
+    .attr("x", 16).attr("y", 12)
     .style("font-size", "10px")
     .style("fill", "#9CA3AF")
-    .text(legendText);
+    .text("km/week");
+
+  // Pace trend swatch
+  legendG.append("rect")
+    .attr("x", 72).attr("y", 4)
+    .attr("width", 12).attr("height", 2)
+    .attr("rx", 1)
+    .attr("fill", "#F97316")
+    .attr("opacity", 0.75);
+  legendG.append("text")
+    .attr("x", 88).attr("y", 12)
+    .style("font-size", "10px")
+    .style("fill", "#9CA3AF")
+    .text("pace trend (↑ faster)");
 }
 
 // ─────────────────────────────────────────────────────────
