@@ -86,6 +86,13 @@
   flex-shrink: 0;
 }
 
+.bp-narrative {
+  font-size: 11px;
+  color: #6B7280;
+  padding: 2px 12px 4px;
+  font-style: italic;
+}
+
 /* Gradient divider */
 .bp-gradient {
   height: 3px;

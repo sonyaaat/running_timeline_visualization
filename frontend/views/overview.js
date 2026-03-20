@@ -170,29 +170,34 @@ export function renderOverview() {
       .style("pointer-events", "none");
   });
 
-  // ── Monthly km area/line ──
-  const monthlyKm = buildMonthlyData(weekly);
-  const maxKm     = d3.max(weekly, d => d.km_total ?? 0) || 1;
-  const yKm       = d3.scaleLinear().domain([0, maxKm]).range([CHART_H, 0]);
+  // ── Weekly km area/line (3-week rolling average for readability) ──
+  const rawKm  = weekly.map((w, i) => ({ weekIdx: i + 0.5, km: w.km_total ?? 0 }));
+  const smoothKm = rawKm.map((d, i, arr) => {
+    const win = arr.slice(Math.max(0, i - 1), i + 2);          // window: prev, curr, next
+    const avg = win.reduce((s, v) => s + v.km, 0) / win.length;
+    return { weekIdx: d.weekIdx, km: avg };
+  });
+  const maxKm = d3.max(rawKm, d => d.km) || 1;
+  const yKm   = d3.scaleLinear().domain([0, maxKm]).range([CHART_H, 0]);
 
   const kmArea = d3.area()
-    .x(d => x(d.weekMid))
+    .x(d => x(d.weekIdx))
     .y0(CHART_H)
     .y1(d => yKm(d.km))
     .curve(d3.curveMonotoneX);
 
   const kmLine = d3.line()
-    .x(d => x(d.weekMid))
+    .x(d => x(d.weekIdx))
     .y(d => yKm(d.km))
     .curve(d3.curveMonotoneX);
 
   chartG.append("path")
-    .datum(monthlyKm)
+    .datum(smoothKm)
     .attr("fill", "rgba(99,102,241,0.12)")
     .attr("d", kmArea);
 
   chartG.append("path")
-    .datum(monthlyKm)
+    .datum(smoothKm)
     .attr("fill", "none")
     .attr("stroke", "rgba(99,102,241,0.5)")
     .attr("stroke-width", 1.5)
@@ -471,28 +476,6 @@ function drawSelectionOverlay(g, startX, curX, innerW, chartH, x) {
   }
 }
 
-// Group weekly records by calendar month, compute mean km per month
-function buildMonthlyData(weekly) {
-  const byMonth = new Map();
-  weekly.forEach((w, i) => {
-    if (!w.week) return;
-    const dateStr = w.week.includes("/") ? w.week.split("/")[0] : w.week;
-    const d = new Date(dateStr + "T00:00:00");
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    if (!byMonth.has(key)) byMonth.set(key, { kmList: [], firstIdx: i, count: 0 });
-    const m = byMonth.get(key);
-    m.kmList.push(w.km_total ?? 0);
-    m.count++;
-  });
-
-  const result = [];
-  byMonth.forEach((v) => {
-    const mean    = v.kmList.reduce((a, b) => a + b, 0) / v.kmList.length;
-    const weekMid = v.firstIdx + v.count / 2;
-    result.push({ weekMid, km: mean });
-  });
-  return result.sort((a, b) => a.weekMid - b.weekMid);
-}
 
 // Build month tick labels, every 2 months, skip if they'd overlap
 function buildMonthTicks(weekly, x, innerW) {

@@ -89,8 +89,23 @@ function buildCard(bp, fromPhase, toPhase, meta) {
       <span class="bp-dot" style="background:${toColor}"></span>
       <span class="bp-name" style="color:${toTextColor}">${toPhase.name}</span>
     </div>
-    <span class="bp-week">W${bp.week_index + 1}</span>
+    <span class="bp-week">${bp.date || ("W" + (bp.week_index + 1))}</span>
   `;
+
+  // ── Narrative subtitle ──
+  if (bp.narrative && bp.narrative !== "pattern_shift") {
+    const NARRATIVE_LABELS = {
+      volume_drop:      "Різке зниження об'єму",
+      volume_surge:     "Стрибок об'єму",
+      fitness_gain:     "Покращення ефективності",
+      frequency_drop:   "Зниження частоти",
+      frequency_surge:  "Зростання частоти",
+    };
+    const narr = document.createElement("div");
+    narr.className = "bp-narrative";
+    narr.textContent = NARRATIVE_LABELS[bp.narrative] || bp.narrative;
+    card.appendChild(narr);
+  }
 
   // ── Gradient divider ──
   const grad = document.createElement("div");
@@ -105,8 +120,8 @@ function buildCard(bp, fromPhase, toPhase, meta) {
     { label: "km/wk",     value: changes.km_per_week,    bigger: true,  show: true },
     { label: "runs/wk",   value: changes.runs_per_week,  bigger: true,  show: true },
     { label: "pace",      value: changes.avg_pace,        bigger: false, show: true },
-    { label: "structure", value: changes.long_run_ratio,  bigger: true,
-      show: changes.long_run_ratio != null && Math.abs(changes.long_run_ratio) > 8 },
+    { label: "run km",    value: changes.avg_run_km,      bigger: true,
+      show: changes.avg_run_km != null && Math.abs(changes.avg_run_km) > 8 },
     { label: "efficiency", value: changes.efficiency,    bigger: true,
       show: meta?.has_hr === true && changes.efficiency != null && Math.abs(changes.efficiency) > 1 },
   ];

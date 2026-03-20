@@ -13,32 +13,38 @@ def detect_on_segment(
 ) -> list[dict]:
     segment = weekly.iloc[seg_start:seg_end]
     n_weeks = len(segment)
-    if n_weeks < MIN_PHASE_WEEKS * 2:
-        log(f"[detection] Segment too short ({n_weeks} weeks) → single phase")
-        return [{"week_start": seg_start, "week_end": seg_end-1}]
-    X = prepare_features(segment, has_efficiency)
-    log(f"[detection] Segment weeks {seg_start}-{seg_end-1}: running PELT on {n_weeks}×{X.shape[1]} matrix...")
-    # PELT params:
-    # model="rbf": detects changes in both mean and variance
-    # min_size=MIN_PHASE_WEEKS: prevents meaningless 1-2 week phases
-    # jump=PELT_JUMP: checks every week as a potential breakpoint (default jump=5 would miss breakpoints by up to 4 weeks)
-    algo = rpt.Pelt(model="rbf", min_size=MIN_PHASE_WEEKS, jump=PELT_JUMP)
+
+    # Use only active (non-zero) weeks for PELT — zero weeks contaminate the signal
+    active_segment = segment[segment["km_total"] > 0]
+    n_active = len(active_segment)
+
+    if n_active < MIN_PHASE_WEEKS * 2:
+        log(f"[detection] Segment too short ({n_active} active / {n_weeks} total weeks) → single phase")
+        return [{"week_start": seg_start, "week_end": seg_end - 1}]
+
+    X = prepare_features(active_segment, has_efficiency)
+    log(f"[detection] Segment weeks {seg_start}-{seg_end-1}: PELT on {n_active} active weeks × {X.shape[1]} features...")
+
+    algo = rpt.Pelt(model="l2", min_size=MIN_PHASE_WEEKS, jump=PELT_JUMP)
     try:
-        breakpoints = algo.fit(X).predict(pen=PELT_PENALTY)
+        bps = algo.fit(X).predict(pen=PELT_PENALTY)
     except Exception as e:
-        log(f"[detection] Warning: BadSegmentationParameters ({e}) → single phase")
-        return [{"week_start": seg_start, "week_end": seg_end-1}]
-    # breakpoints are end indices (1-based, relative to segment)
+        log(f"[detection] Warning: {e} → single phase")
+        return [{"week_start": seg_start, "week_end": seg_end - 1}]
+
+    # bps are end positions in the active array (1-based, last bp == n_active).
+    # Map back to calendar (iloc) indices.
+    active_cal = list(active_segment.index)  # calendar position of each active week
+
     phases = []
-    prev = 0
-    for bp in breakpoints:
-        start = seg_start + prev
-        end = seg_start + bp - 1
-        phases.append({"week_start": start, "week_end": end})
-        prev = bp
-    log(f"[detection] Segment weeks {seg_start}-{seg_end-1}: found {len(breakpoints)-1} breakpoints → {len(phases)} phases")
+    for bp in bps:
+        cal_start = seg_start if not phases else phases[-1]["week_end"] + 1
+        cal_end   = (active_cal[bp] - 1) if bp < len(active_cal) else (seg_end - 1)
+        phases.append({"week_start": cal_start, "week_end": cal_end})
+
+    log(f"[detection] Found {len(bps) - 1} breakpoints → {len(phases)} phases")
     for p in phases:
-        log(f"[detection]   Phase: weeks {p['week_start']}-{p['week_end']} ({p['week_end']-p['week_start']+1} weeks)")
+        log(f"[detection]   Phase: weeks {p['week_start']}-{p['week_end']} ({p['week_end']-p['week_start']+1} cal weeks)")
     return phases
 
 if __name__ == "__main__":

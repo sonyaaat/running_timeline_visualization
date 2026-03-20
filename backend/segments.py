@@ -10,23 +10,36 @@ def split_into_segments(weekly: pd.DataFrame, activities: list[dict]) -> tuple[l
     cut_points = [0]
     inactive_phases = []
     for gap in week_gaps:
-        # Неактивна фаза: тижні gap['week_start']+1 до gap['week_end'] включно
-        cut_points.append(gap["week_start"] + 1)
-        cut_points.append(gap["week_end"] + 1)
+        inactive_start = gap["week_start"] + 1
+        return_week    = gap["week_end"]
+        # The return week has actual runs → exclude from Inactive, let active segment start there
+        if return_week > inactive_start:
+            inactive_end  = return_week - 1
+            active_resume = return_week
+        else:
+            # Edge case: return is in the immediately next week → force 1 inactive week
+            inactive_end  = inactive_start
+            active_resume = inactive_start + 1
+        cut_points.append(inactive_start)
+        cut_points.append(active_resume)
         inactive_phases.append({
             "type": "Inactive",
             "name": "Inactive",
-            "week_start": gap["week_start"] + 1,
-            "week_end": gap["week_end"],
-            "days": gap["days"]
+            "week_start": inactive_start,
+            "week_end":   inactive_end,
+            "days":       gap["days"]
         })
-        log(f"[segments] Inactive: weeks {gap['week_start']+1}-{gap['week_end']} ({gap['days']} days)")
+        log(f"[segments] Inactive: weeks {inactive_start}-{inactive_end} ({gap['days']} days), active resumes w{active_resume}")
     cut_points.append(n_weeks)
     cut_points = sorted(set(cut_points))
+    # Build a set of week indices that start an inactive range — these pairs must be skipped
+    inactive_starts = {gap["week_start"] + 1 for gap in week_gaps}
     segments = []
     seg_num = 1
     for i in range(len(cut_points) - 1):
         start, end = cut_points[i], cut_points[i+1] - 1
+        if start in inactive_starts:
+            continue  # this range is an inactive period, already captured in inactive_phases
         if end - start + 1 >= 2:
             segments.append((start, end))
             log(f"[segments] Segment {seg_num}: weeks {start}-{end} ({end-start+1} weeks)")

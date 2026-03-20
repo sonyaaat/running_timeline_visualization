@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from backend.utils import log
 
-FEATURES_BASE = ["km_total", "run_count", "avg_pace", "long_run_ratio"]
+FEATURES_BASE    = ["km_total", "run_count", "avg_pace", "avg_run_km", "km_4w_slope"]
 FEATURES_WITH_HR = FEATURES_BASE + ["efficiency"]
 
 def robust_scale(X: np.ndarray) -> np.ndarray:

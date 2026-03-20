@@ -44,6 +44,22 @@ def build_weekly_features(activities: list[dict]) -> pd.DataFrame:
         log(f"[features] Date range: {weekly['week'].min()} to {weekly['week'].max()}")
     return weekly
 
+def _km_rolling_slope(km_values: np.ndarray, window: int = 4) -> np.ndarray:
+    """Linear slope of km_total over the last `window` active weeks, per calendar week."""
+    result = np.full(len(km_values), 0.0)
+    active_idx = np.where(km_values > 0)[0]
+    for j, cal_i in enumerate(active_idx):
+        idxs = active_idx[max(0, j - window + 1): j + 1]
+        if len(idxs) < 2:
+            result[cal_i] = 0.0
+            continue
+        y = km_values[idxs].astype(float)
+        x = np.arange(len(idxs), dtype=float)
+        slope, _ = np.polyfit(x, y, 1)
+        result[cal_i] = float(slope)
+    return result
+
+
 def fill_calendar(weekly: pd.DataFrame) -> pd.DataFrame:
     all_weeks = pd.period_range(weekly["week"].min(), weekly["week"].max(), freq="W")
     calendar = pd.DataFrame({"week": all_weeks})
@@ -51,10 +67,11 @@ def fill_calendar(weekly: pd.DataFrame) -> pd.DataFrame:
     # Fill missing with 0 for km_total, run_count
     merged["km_total"] = merged["km_total"].fillna(0)
     merged["run_count"] = merged["run_count"].fillna(0)
-    # Forward-fill for avg_pace, long_run_ratio, efficiency
-    for col in ["avg_pace", "long_run_ratio", "efficiency"]:
+    # Forward-fill for avg_pace, long_run_ratio, avg_run_km, efficiency
+    for col in ["avg_pace", "long_run_ratio", "avg_run_km", "efficiency"]:
         merged[col] = merged[col].ffill()
     merged["long_run_ratio"] = merged["long_run_ratio"].fillna(1.0)
+    merged["km_4w_slope"] = _km_rolling_slope(merged["km_total"].values)
     n_empty = (merged["run_count"] == 0).sum()
     n_active = len(merged) - n_empty
     log(f"[features] Calendar filled: {len(merged)} total weeks ({n_active} active, {n_empty} empty)")

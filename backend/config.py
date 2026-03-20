@@ -2,10 +2,11 @@ OUTPUT_PATH = "output/phases.json"
 FRONTEND_DATA_PATH = "frontend/data/phases.json"
 
 INACTIVE_GAP_DAYS = 10      # min days between runs to mark as Inactive phase
-MIN_PHASE_WEEKS   = 7       # minimum weeks for a valid phase
-PELT_PENALTY      = 10      # changepoint sensitivity (higher = fewer phases)
-PELT_JUMP         = 5       # must be 1 for weekly data — do not change
+MIN_PHASE_WEEKS   = 4       # minimum weeks for a valid phase
+PELT_PENALTY      = 5      # changepoint sensitivity (higher = fewer phases)
+PELT_JUMP         = 1       # must be 1 for weekly data — do not change
 HR_MIN_COVERAGE   = 0.40    # min fraction of runs with HR to include efficiency
+MIN_MERGE_WEEKS   = 3       # active phases shorter than this are merged into adjacent neighbors
 
 PHASE_COLORS = {
     "Inactive":                      "#D1D5DB",

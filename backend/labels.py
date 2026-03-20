@@ -13,33 +13,46 @@ def volume_label(km_ratio: float) -> str:
         return "High Volume"
     return "Peak Volume"
 
-def character_label(runs_ratio: float, long_run_ratio: float, pace_ratio: float) -> str:
+def character_label(runs_ratio: float, avg_run_km_ratio: float, pace_ratio: float) -> str:
     if runs_ratio < 0.45:
         return "Sparse"
-    if long_run_ratio >= 2.0 and runs_ratio >= 0.8:
+    if avg_run_km_ratio >= 1.5 and runs_ratio >= 0.8:
         return "Long Runs"
     if pace_ratio < 0.90:
         return "Fast Weeks"
     if runs_ratio >= 1.30:
         return "Frequent"
-    if long_run_ratio < 1.25 and runs_ratio >= 0.75:
+    if avg_run_km_ratio < 1.25 and runs_ratio >= 0.75:
         return "Consistent"
     return "Moderate"
 
 def label_phase(phase_data: pd.DataFrame, all_active_weekly: pd.DataFrame) -> str:
-    km = phase_data["km_total"].mean()
-    runs = phase_data["run_count"].mean()
-    pace = phase_data["avg_pace"].mean()
-    long_run = phase_data["long_run_ratio"].mean()
-    active = all_active_weekly[all_active_weekly["km_total"] > 0]
-    med_km = active["km_total"].median()
-    med_runs = active["run_count"].median()
-    med_pace = active["avg_pace"].median()
-    km_ratio = km / med_km if med_km else 0
-    runs_ratio = runs / med_runs if med_runs else 0
-    pace_ratio = pace / med_pace if med_pace else 0
-    vol = volume_label(km_ratio)
-    char = character_label(runs_ratio, long_run, pace_ratio)
+    # Use only active weeks to avoid zero-km dilution
+    active = phase_data[phase_data["km_total"] > 0]
+    if len(active) == 0:
+        active = phase_data  # fallback — should not normally happen
+
+    km      = active["km_total"].mean()
+    runs    = active["run_count"].mean()
+    pace    = active["avg_pace"].mean()
+    avg_run = active["avg_run_km"].mean() if "avg_run_km" in active.columns else 0.0
+
+    ref = all_active_weekly[all_active_weekly["km_total"] > 0]
+    med_km      = ref["km_total"].median()
+    med_runs    = ref["run_count"].median()
+    med_pace    = ref["avg_pace"].median()
+    med_run_km  = (ref["avg_run_km"].median()
+                   if "avg_run_km" in ref.columns and ref["avg_run_km"].notna().any()
+                   else 1.0)
+
+    km_ratio         = km      / med_km      if med_km      else 0.0
+    runs_ratio       = runs    / med_runs    if med_runs    else 0.0
+    pace_ratio       = pace    / med_pace    if med_pace    else 1.0
+    avg_run_km_ratio = avg_run / med_run_km  if med_run_km  else 1.0
+
+    vol  = volume_label(km_ratio)
+    char = character_label(runs_ratio, avg_run_km_ratio, pace_ratio)
+
     if char == "Moderate":
         return vol
     if vol == "Low Volume" and char == "Sparse":
@@ -50,15 +63,22 @@ def get_color(name: str) -> str:
     return PHASE_COLORS.get(name, "#D1D5DB")
 
 def compute_stats(phase_data: pd.DataFrame) -> dict:
+    # Exclude zero-km weeks so stats reflect actual training load
+    active = phase_data[phase_data["km_total"] > 0]
+    if len(active) == 0:
+        active = phase_data  # fallback
+
     d = {
-        "km_per_week": round(phase_data["km_total"].mean(), 2),
-        "runs_per_week": round(phase_data["run_count"].mean(), 2),
-        "avg_pace": round(phase_data["avg_pace"].mean(), 2),
-        "long_run_ratio": round(phase_data["long_run_ratio"].mean(), 2),
-        "efficiency": None
+        "km_per_week":   round(float(active["km_total"].mean()), 2),
+        "runs_per_week": round(float(active["run_count"].mean()), 2),
+        "avg_pace":      round(float(active["avg_pace"].mean()), 2),
+        "avg_run_km":    round(float(active["avg_run_km"].mean()), 2)
+                         if "avg_run_km" in active.columns and active["avg_run_km"].notna().any()
+                         else None,
+        "efficiency":    None,
     }
-    if "efficiency" in phase_data and not phase_data["efficiency"].isna().all():
-        d["efficiency"] = round(phase_data["efficiency"].mean(), 2)
+    if "efficiency" in active.columns and not active["efficiency"].isna().all():
+        d["efficiency"] = round(float(active["efficiency"].mean()), 4)
     return d
 
 if __name__ == "__main__":
