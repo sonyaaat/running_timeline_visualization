@@ -3,3 +3,4 @@ numpy
 ruptures
 scikit-learn
 stravalib
+flask

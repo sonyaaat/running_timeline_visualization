@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import sys
 import pandas as pd
 from backend.utils import log, log_section, clean_nan
@@ -8,7 +9,7 @@ from backend.gaps import find_inactive_gaps, gaps_to_week_indices
 from backend.segments import split_into_segments
 from backend.detection import detect_on_segment
 from backend.labels import label_phase, get_color, compute_stats
-from backend.config import INACTIVE_GAP_DAYS, MIN_PHASE_WEEKS, PELT_PENALTY
+from backend.config import INACTIVE_GAP_DAYS, MIN_PHASE_WEEKS, PELT_PENALTY, OUTPUT_PATH, FRONTEND_DATA_PATH
 
 def build_breakpoint(prev: dict, curr: dict) -> dict:
     def pct_change(a, b, bigger=True):
@@ -29,10 +30,17 @@ def build_breakpoint(prev: dict, curr: dict) -> dict:
         }
     }
 
-def run_pipeline(access_token: str = None) -> dict:
+def run_pipeline(force_refresh: bool = False) -> dict:
+    """
+    force_refresh=True  → delete cache and re-fetch from Strava
+    force_refresh=False → use existing raw_activities.json if it exists
+    """
     # 1. STRAVA FETCH
     log_section("STRAVA FETCH")
     raw_path = os.path.join(os.path.dirname(__file__), "..", "data", "raw_activities.json")
+    if force_refresh and os.path.exists(raw_path):
+        os.remove(raw_path)
+        print("[pipeline] Cache cleared — will re-fetch from Strava")
     if os.path.exists(raw_path):
         with open(raw_path, encoding="utf8") as f:
             activities = json.load(f)
@@ -132,9 +140,13 @@ def run_pipeline(access_token: str = None) -> dict:
         }
     }
     output = clean_nan(output)
-    out_path = os.path.join(os.path.dirname(__file__), "..", "output", "phases.json")
+    root = os.path.join(os.path.dirname(__file__), "..")
+    out_path = os.path.join(root, OUTPUT_PATH)
     with open(out_path, "w", encoding="utf8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
+    frontend_path = os.path.join(root, FRONTEND_DATA_PATH)
+    os.makedirs(os.path.dirname(frontend_path), exist_ok=True)
+    shutil.copy(out_path, frontend_path)
     # Final summary
     log("[pipeline] ══════════════════════════════")
     log(f"[pipeline] ✓ {len(weekly)} weeks analyzed")
@@ -144,9 +156,9 @@ def run_pipeline(access_token: str = None) -> dict:
             log(f"[pipeline]   ○ Inactive {phase['week_end']-phase['week_start']+1}w  ({phase.get('days','')} days)")
         else:
             log(f"[pipeline]   ● {phase['name']:<25} {phase['week_end']-phase['week_start']+1}w")
-    log(f"[pipeline] ✓ Saved to output/phases.json")
+    log(f"[pipeline] ✓ Saved to {OUTPUT_PATH} and copied to {FRONTEND_DATA_PATH}")
     return output
 
 if __name__ == "__main__":
-    token = sys.argv[1] if len(sys.argv) > 1 else None
-    run_pipeline(token)
+    force = "--force" in sys.argv
+    run_pipeline(force_refresh=force)

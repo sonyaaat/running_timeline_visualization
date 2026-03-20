@@ -1,3 +1,6 @@
+OUTPUT_PATH = "output/phases.json"
+FRONTEND_DATA_PATH = "frontend/data/phases.json"
+
 INACTIVE_GAP_DAYS = 10      # min days between runs to mark as Inactive phase
 MIN_PHASE_WEEKS   = 7       # minimum weeks for a valid phase
 PELT_PENALTY      = 10      # changepoint sensitivity (higher = fewer phases)

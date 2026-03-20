@@ -37,3 +37,15 @@ export function pctColor(value, biggerIsBetter = true) {
   const positive = biggerIsBetter ? value > 0 : value < 0;
   return positive ? "#3B6D11" : "#993C1D";
 }
+
+export function showTooltip(tooltip, event, html) {
+  tooltip
+    .style("display", "block")
+    .style("left", (event.pageX + 12) + "px")
+    .style("top",  (event.pageY - 28) + "px")
+    .html(html);
+}
+
+export function hideTooltip(tooltip) {
+  tooltip.style("display", "none");
+}

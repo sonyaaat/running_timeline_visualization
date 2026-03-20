@@ -22,7 +22,8 @@ def fetch_and_cache_activities():
     # Зберігаємо тільки потрібні поля для кешу згідно з вимогами
     activities_data = []
     for a in activities:
-        if a.type != "Run":
+        RUN_TYPES = {"Run", "TrailRun", "VirtualRun", "Treadmill"}
+        if a.type not in RUN_TYPES:
             continue
         activities_data.append({
             "start_date": a.start_date.isoformat() if hasattr(a, "start_date") and a.start_date else None,
