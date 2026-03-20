@@ -1,0 +1,34 @@
+{
+  "phases": [
+    {
+      "id": 1,
+      "type": "Active",
+      "name": "Steady Volume / Frequent",
+      "color": "#7F77DD",
+      "week_start": 0,
+      "week_end": 12,
+      "stats": {
+        "km_per_week": 16.47,
+        "runs_per_week": 2.85,
+        "avg_pace": 5.87,
+        "long_run_ratio": 1.46,
+        "efficiency": 0.02
+      }
+    }
+  ],
+  "weekly": [
+    {
+      "week": "2024-07-08/2024-07-14",
+      "km_total": 5.01,
+      "run_count": 1.0,
+      "avg_pace": 5.99736116108912,
+      "max_run_km": 5.01,
+      "avg_run_km": 5.01,
+      "long_run_ratio": 1.0,
+      "efficiency": 0.016072874493927126,
+      "phase_id": 1
+    }
+  ],
+  "breakpoints": [],
+  "meta": {}
+}

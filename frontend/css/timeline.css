@@ -1,0 +1,23 @@
+/* Timeline-specific styles */
+.timeline {
+  margin: 2rem 0;
+  height: 120px;
+  position: relative;
+}
+.timeline .phase {
+  display: inline-block;
+  height: 100%;
+  border-radius: 8px;
+  margin-right: 2px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.timeline .phase.selected {
+  box-shadow: 0 0 0 3px #2563eb;
+  z-index: 2;
+}
+.timeline .zoom-range {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
