@@ -1,26 +1,39 @@
-// Shared formatting helpers
-export function formatPace(pace) {
-  if (pace == null) return '--';
-  const min = Math.floor(pace);
-  const sec = Math.round((pace - min) * 60).toString().padStart(2, '0');
-  return `${min}:${sec}/km`;
+export function formatPace(minPerKm) {
+  if (!minPerKm || isNaN(minPerKm)) return "—";
+  const min = Math.floor(minPerKm);
+  const sec = Math.round((minPerKm - min) * 60);
+  return `${min}:${sec.toString().padStart(2, "0")} /km`;
+}
+
+export function formatKm(km) {
+  if (km == null || isNaN(km)) return "—";
+  return `${km.toFixed(1)} km`;
+}
+
+export function formatWeekLabel(weekStr) {
+  // "2023-01-02" or "2023-01-02/2023-01-08"
+  if (!weekStr) return "";
+  const dateStr = weekStr.includes("/") ? weekStr.split("/")[0] : weekStr;
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d)) return weekStr;
+  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
 export function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString();
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
+export function pctLabel(value) {
+  if (value == null) return "";
+  const sign = value >= 0 ? "↑" : "↓";
+  return `${sign}${Math.abs(Math.round(value))}%`;
 }
 
-// Format week label as 'Jan 2023', bold if January
-export function formatWeekLabel(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const month = d.toLocaleString('default', { month: 'short' });
-  const year = d.getFullYear();
-  return `${month} ${year}`;
+export function pctColor(value, biggerIsBetter = true) {
+  if (value == null) return "#6B7280";
+  const positive = biggerIsBetter ? value > 0 : value < 0;
+  return positive ? "#3B6D11" : "#993C1D";
 }

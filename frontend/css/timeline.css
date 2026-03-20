@@ -1,23 +1,117 @@
-/* Timeline-specific styles */
-.timeline {
-  margin: 2rem 0;
-  height: 120px;
-  position: relative;
+/* Overview timeline */
+#overview-chart {
+  width: 100%;
+  overflow: visible;
 }
-.timeline .phase {
-  display: inline-block;
-  height: 100%;
-  border-radius: 8px;
-  margin-right: 2px;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
+
+#overview-chart svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
 }
-.timeline .phase.selected {
-  box-shadow: 0 0 0 3px #2563eb;
-  z-index: 2;
-}
-.timeline .zoom-range {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+
+/* Phase bar labels */
+.phase-label {
+  font-size: 9px;
+  font-weight: 500;
   pointer-events: none;
+  dominant-baseline: middle;
+  text-anchor: middle;
+}
+
+/* Brush selection */
+.brush .selection {
+  fill: rgba(99, 102, 241, 0.12);
+  stroke: #6366F1;
+  stroke-width: 1px;
+}
+
+.brush .handle {
+  fill: #6366F1;
+}
+
+/* Zoom timeline */
+#zoom-timeline-chart {
+  width: 100%;
+  overflow: visible;
+}
+
+#zoom-timeline-chart svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+/* Phase segments in zoom view */
+.zoom-phase-rect {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.zoom-phase-rect:hover {
+  opacity: 0.82;
+}
+
+.zoom-phase-rect.selected {
+  stroke: #111827;
+  stroke-width: 1.5px;
+}
+
+/* Week tick marks */
+.week-axis line {
+  stroke: #E5E7EB;
+}
+
+.week-axis text {
+  font-size: 9px;
+  fill: #9CA3AF;
+}
+
+.week-axis path {
+  display: none;
+}
+
+/* Volume bars in zoom view */
+.volume-bar {
+  fill: #E5E7EB;
+}
+
+/* Km/week line */
+.km-line {
+  fill: none;
+  stroke: #6B7280;
+  stroke-width: 1px;
+  opacity: 0.5;
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #374151;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+  max-width: 220px;
+  z-index: 100;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 3px;
+}
+
+.tooltip-key {
+  color: #9CA3AF;
 }

@@ -1,12 +1,108 @@
-body {
-  font-family: 'Inter', Arial, sans-serif;
-  background: #f8fafc;
-  color: #222;
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #FAFAF9;
+  color: #1F2937;
+  min-height: 100vh;
+}
+
+#loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: #9CA3AF;
+  font-size: 14px;
+}
+
+/* App shell — no max-width so overview can go full bleed */
 #app {
-  max-width: 1200px;
+  width: 100%;
+}
+
+/* Constrained sections */
+#header,
+#section-detail {
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 0 32px;
+}
+
+#header {
+  padding-top: 32px;
+  padding-bottom: 0;
+  margin-bottom: 28px;
+}
+
+#header h1 {
+  font-size: 26px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+
+#meta-label {
+  font-size: 14px;
+  color: #888;
+}
+
+/* Overview section — full width */
+#section-overview {
+  width: 100%;
+  padding: 0 32px;
+  margin-bottom: 40px;
+  box-sizing: border-box;
+}
+
+.section-label {
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #999;
+  margin: 28px 0 10px;
+}
+
+section {
+  margin-bottom: 40px;
+}
+
+#btn-reset {
+  background: none;
+  border: 1px solid #D1D5DB;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#btn-reset:hover {
+  background: #F3F4F6;
+}
+
+#zoom-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+#zoom-label {
+  font-size: 13px;
+  color: #666;
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: #F3F4F6;
+  padding: 1px 4px;
+  border-radius: 3px;
 }

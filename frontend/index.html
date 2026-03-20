@@ -7,10 +7,58 @@
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/timeline.css">
   <link rel="stylesheet" href="css/detail.css">
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7" defer></script>
 </head>
 <body>
-  <div id="app"></div>
+
+  <!-- Loading screen -->
+  <div id="loading">
+    <p>Loading your running history...</p>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" style="display:none">
+
+    <!-- Header -->
+    <header id="header">
+      <h1>Running Phase Explorer</h1>
+      <p id="meta-label"></p>
+    </header>
+
+    <!-- Section 1: Overview timeline (always visible) -->
+    <section id="section-overview">
+      <div class="section-label">Overview — drag to explore a period</div>
+      <div id="overview-chart"></div>
+    </section>
+
+    <!-- Section 2: Zoom + detail (hidden until drag) -->
+    <section id="section-detail" style="display:none">
+      <div id="zoom-header">
+        <button id="btn-reset">← All phases</button>
+        <span id="zoom-label"></span>
+      </div>
+
+      <!-- 2a: Detailed timeline with phase labels -->
+      <div class="section-label">Phase Timeline</div>
+      <div id="zoom-timeline-chart"></div>
+
+      <!-- 2b: Breakpoint cards -->
+      <div class="section-label" id="bp-section-label">Phase Transitions</div>
+      <div id="breakpoints-container"></div>
+
+      <!-- 2c: Weekly heatmap (appears when phase is clicked) -->
+      <div id="heatmap-section" style="display:none">
+        <div class="section-label">Weekly Pattern — <span id="heatmap-phase-name"></span></div>
+        <div id="heatmap-chart"></div>
+      </div>
+
+      <!-- 2d: Efficiency chart -->
+      <div class="section-label" id="eff-label" style="display:none">Pace–HR Efficiency</div>
+      <div id="efficiency-chart"></div>
+    </section>
+
+  </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

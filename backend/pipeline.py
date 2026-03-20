@@ -73,33 +73,22 @@ def run_pipeline(access_token: str = None) -> dict:
             phase_id += 1
     # 5. ASSEMBLING RESULTS
     log_section("ASSEMBLING RESULTS")
-    all_phases = []
-    # Додаємо всі активні фази
-    for phase in active_phases:
-        all_phases.append(phase)
-    # Додаємо лише ті неактивні фази, які не перекриваються з активними
-    for inact in inactive_phases:
-        overlap = False
-        for act in active_phases:
-            # Якщо є перекриття тижнів
-            if not (inact["week_end"] < act["week_start"] or inact["week_start"] > act["week_end"]):
-                overlap = True
-                break
-        if not overlap:
-            all_phases.append({
-                "id": phase_id,
-                "type": "Inactive",
-                "name": "Inactive",
-                "color": get_color("Inactive"),
-                "week_start": inact["week_start"],
-                "week_end": inact["week_end"],
-                "stats": {"km_per_week": 0, "runs_per_week": 0, "avg_pace": None, "long_run_ratio": None, "efficiency": None},
-                "days": inact["days"]
-            })
-            phase_id += 1
-    all_phases = sorted(all_phases, key=lambda p: p["week_start"])
-    for idx, phase in enumerate(all_phases):
-        phase["id"] = idx + 1
+    inactive_phase_dicts = [
+        {
+            "type": "Inactive",
+            "name": "Inactive",
+            "color": "#D1D5DB",
+            "week_start": inact["week_start"],
+            "week_end": inact["week_end"],
+            "weeks": inact["week_end"] - inact["week_start"],
+            "stats": None,
+        }
+        for inact in inactive_phases
+    ]
+    all_phases = active_phases + inactive_phase_dicts
+    all_phases.sort(key=lambda p: p["week_start"])
+    for i, p in enumerate(all_phases):
+        p["id"] = i + 1
     # Breakpoints
     breakpoints = []
     prev = None
@@ -108,11 +97,19 @@ def run_pipeline(access_token: str = None) -> dict:
             if prev is not None:
                 breakpoints.append(build_breakpoint(prev, phase))
             prev = phase
-    # Assign phase_id to weekly
+    # Assign phase_id to weekly (iloc uses positional indexing — safe regardless of index type)
     weekly = weekly.copy()
     weekly["phase_id"] = None
-    for phase in all_phases:
-        weekly.loc[(weekly.index >= phase["week_start"]) & (weekly.index <= phase["week_end"]), "phase_id"] = phase["id"]
+    for p in all_phases:
+        weekly.iloc[
+            p["week_start"]:p["week_end"],
+            weekly.columns.get_loc("phase_id")
+        ] = p["id"]
+    # Verification print before saving
+    print("\n[pipeline] Final phase list:")
+    for p in all_phases:
+        marker = "●" if p["type"] == "Active" else "○"
+        print(f"  {marker} {p['name']:<25} w{p['week_start']}-{p['week_end']}  id={p['id']}")
     # Convert week to str for JSON serialization
     weekly["week"] = weekly["week"].astype(str)
     weekly = weekly.infer_objects(copy=False)
