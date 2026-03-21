@@ -1,40 +1,27 @@
-// Volume level → sequential color scale (cool=low, warm=high)
-const VOLUME_COLORS = {
-  "Low":      { bg: "#BEE3B0", text: "#2D6A1F" },  // soft green
-  "Moderate": { bg: "#93C5E8", text: "#1A4F78" },  // light blue
-  "Steady":   { bg: "#7B8FD4", text: "#2A3580" },  // indigo
-  "High":     { bg: "#F5A623", text: "#7A4800" },  // amber
-  "Peak":     { bg: "#E05A3A", text: "#6B1500" },  // red-orange
+const PHASE_COLORS = {
+  "Building":   { bg: "#4ADE80", text: "#14532D" },  // green  — growing volume
+  "Peak":       { bg: "#F59E0B", text: "#78350F" },  // amber  — highest load
+  "Base":       { bg: "#818CF8", text: "#312E81" },  // indigo — stable moderate
+  "Recovery":   { bg: "#93C5FD", text: "#1E3A5F" },  // sky    — low volume
+  "Sharpening": { bg: "#2DD4BF", text: "#134E4A" },  // teal   — tapering
 };
 
-// Character modifier → small label suffix only (no color change)
-function volumeLevel(phaseName) {
-  if (phaseName.startsWith("Low"))      return "Low";
-  if (phaseName.startsWith("Moderate")) return "Moderate";
-  if (phaseName.startsWith("Steady"))   return "Steady";
-  if (phaseName.startsWith("High"))     return "High";
-  if (phaseName.startsWith("Peak"))     return "Peak";
-  return null;
-}
-
 export function phaseColor(phaseName) {
-  const lvl = volumeLevel(phaseName);
-  return lvl ? VOLUME_COLORS[lvl].bg : "#D1D5DB";
+  return PHASE_COLORS[phaseName]?.bg ?? "#D1D5DB";
 }
 
 export function phaseTextColor(phaseName) {
-  const lvl = volumeLevel(phaseName);
-  return lvl ? VOLUME_COLORS[lvl].text : "#374151";
+  return PHASE_COLORS[phaseName]?.text ?? "#374151";
 }
 
-// Export for legend rendering
-export const VOLUME_SCALE = [
-  { level: "Low",      label: "Low",      ...VOLUME_COLORS["Low"]      },
-  { level: "Moderate", label: "Moderate", ...VOLUME_COLORS["Moderate"] },
-  { level: "Steady",   label: "Steady",   ...VOLUME_COLORS["Steady"]   },
-  { level: "High",     label: "High",     ...VOLUME_COLORS["High"]     },
-  { level: "Peak",     label: "Peak",     ...VOLUME_COLORS["Peak"]     },
+// Fixed ordered scale for legend rendering
+export const PHASE_SCALE = [
+  { name: "Building",   label: "Building",   ...PHASE_COLORS["Building"]   },
+  { name: "Peak",       label: "Peak",       ...PHASE_COLORS["Peak"]       },
+  { name: "Base",       label: "Base",       ...PHASE_COLORS["Base"]       },
+  { name: "Recovery",   label: "Recovery",   ...PHASE_COLORS["Recovery"]   },
+  { name: "Sharpening", label: "Sharpening", ...PHASE_COLORS["Sharpening"] },
 ];
 
-export function inactiveColor() { return "#F87171"; }
-export function inactiveTextColor() { return "#7F1D1D"; }
+export function inactiveColor()     { return "#D1D5DB"; }
+export function inactiveTextColor() { return "#6B7280"; }

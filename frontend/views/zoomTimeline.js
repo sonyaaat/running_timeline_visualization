@@ -20,6 +20,15 @@ function _onWeekDeselected() {
   renderTimeline(ws, we, phasesInRange, bpInRange);
 }
 
+function _onWeekSelected() {
+  if (_weekDeselectedWeekStart == null) return;
+  const ws = _weekDeselectedWeekStart;
+  const we = _weekDeselectedWeekEnd;
+  const phasesInRange = APP_STATE.phases.filter(p => p.week_end >= ws && p.week_start <= we);
+  const bpInRange     = APP_STATE.breakpoints.filter(bp => bp.week_index >= ws && bp.week_index <= we);
+  renderTimeline(ws, we, phasesInRange, bpInRange);
+}
+
 // ─────────────────────────────────────────────────────────
 // Public: renderDetail
 // ─────────────────────────────────────────────────────────
@@ -62,9 +71,12 @@ export function renderDetail(weekStart, weekEnd) {
       .scrollIntoView({ behavior: "smooth", block: "center" });
   }, 100);
 
-  // Remove any stale week-deselected listeners and add fresh one
+  // Remove any stale listeners and add fresh ones
   document.removeEventListener("week-deselected", _onWeekDeselected);
   document.addEventListener("week-deselected", _onWeekDeselected);
+
+  document.removeEventListener("week-selected", _onWeekSelected);
+  document.addEventListener("week-selected", _onWeekSelected);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -195,24 +207,34 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
     const tc = isInactive ? "#9CA3AF" : phaseTextColor(phase.name);
     const cx = px1 + bw / 2;
 
+    // Clip text to segment bounds so it never overflows into adjacent segments
+    const clipId = `zt-clip-${phase.id}`;
+    const clipPad = 6;
+    segG.append("clipPath").attr("id", clipId)
+      .append("rect")
+        .attr("x", px1 + clipPad).attr("y", 0)
+        .attr("width", Math.max(0, bw - clipPad * 2)).attr("height", STRIP_H);
+
     if (!isInactive && bw >= 44) {
-      // Phase name
-      const nameLabel = bw >= 100 ? phase.name : phase.name.split(" / ")[0];
+      const hasSubtitle = bw >= 80 && phase.stats;
+      const nameLabel   = bw >= 100 ? phase.name : phase.name.split(" / ")[0];
+
       segG.append("text")
-        .attr("x", cx).attr("y", bw >= 80 ? STRIP_H / 2 - 11 : STRIP_H / 2)
+        .attr("x", cx).attr("y", hasSubtitle ? STRIP_H / 2 - 11 : STRIP_H / 2)
         .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
         .style("font-size", bw >= 120 ? "14px" : "12px").style("font-weight", "700")
         .style("pointer-events", "none")
+        .attr("clip-path", `url(#${clipId})`)
         .attr("fill", tc).attr("opacity", opacity)
         .text(nameLabel);
 
-      // Subtitle: duration + avg km/wk
-      if (bw >= 80 && phase.stats) {
+      if (hasSubtitle) {
         const s = phase.stats;
         segG.append("text")
           .attr("x", cx).attr("y", STRIP_H / 2 + 10)
           .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
           .style("font-size", "11px").style("pointer-events", "none")
+          .attr("clip-path", `url(#${clipId})`)
           .attr("fill", tc).attr("opacity", opacity * 0.75)
           .text(`${phase.duration_weeks}w · ${s.km_per_week?.toFixed(0) ?? "?"} km/wk`);
       }
@@ -492,20 +514,11 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
     markerG
       .on("mouseover", (event) => {
         shape.attr("fill-opacity", 1);
-        showTooltip(tooltip, event,
-          `<b>${fromPhase.name}</b> → <b>${toPhase.name}</b><br>
-           <span style="color:#9CA3AF;font-size:11px">Click to see transition details</span>`);
-      })
-      .on("mousemove", (event) => {
-        tooltip.style("left", (event.pageX + 12) + "px")
-               .style("top",  (event.pageY - 28) + "px");
+        showTransitionPopover(bp, fromPhase, toPhase, event);
       })
       .on("mouseout", () => {
         shape.attr("fill-opacity", 0.85);
-        hideTooltip(tooltip);
-      })
-      .on("click", () => {
-        showTransitionDetail(bp, fromPhase, toPhase);
+        hideTransitionPopover();
       });
   });
 
@@ -582,29 +595,33 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   });
 
   // ── Day ticks + numbers (row 1) ──
-  // Density: every week if barStep≥16, every 2nd if ≥8, every 4th if ≥4, none if <4
+  // Density: every week if barStep≥16, every 2nd if ≥8, every 4th if ≥4, month-only if <4
   const dayEvery = barStep >= 16 ? 1 : barStep >= 8 ? 2 : barStep >= 4 ? 4 : 0;
 
   visWeekly.forEach((w, i) => {
     if (!w.week) return;
     const dateStr  = w.week.includes("/") ? w.week.split("/")[0] : w.week;
     const d        = new Date(dateStr + "T00:00:00");
-    const px       = i * barStep + barW / 2;
+    const px       = i * barStep;
     const isMonthB = monthBoundaries.some(mb => mb.i === i);
 
-    // Tick mark
-    axisG.append("line")
-      .attr("x1", px).attr("x2", px)
-      .attr("y1", 0).attr("y2", isMonthB ? 8 : 4)
-      .attr("stroke", isMonthB ? "#9CA3AF" : "#D1D5DB")
-      .attr("stroke-width", isMonthB ? 1 : 0.6);
+    // Tick mark — always show at month boundary, otherwise by density
+    const showTick = isMonthB || (dayEvery > 0 && i % dayEvery === 0);
+    if (showTick) {
+      axisG.append("line")
+        .attr("x1", px).attr("x2", px)
+        .attr("y1", 0).attr("y2", isMonthB ? 9 : 5)
+        .attr("stroke", isMonthB ? "#6B7280" : "#C1C5CC")
+        .attr("stroke-width", isMonthB ? 1.2 : 0.7);
+    }
 
-    // Day number
-    if (dayEvery > 0 && i % dayEvery === 0) {
+    // Day number — always at month boundaries, otherwise by density
+    const showNum = isMonthB || (dayEvery > 0 && i % dayEvery === 0);
+    if (showNum) {
       axisG.append("text")
-        .attr("x", px).attr("y", DAY_H / 2 + 2)
-        .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-        .style("font-size", "11px")
+        .attr("x", px + 3).attr("y", DAY_H / 2 + 2)
+        .attr("text-anchor", "start").attr("dominant-baseline", "middle")
+        .style("font-size", isMonthB ? "12px" : "11px")
         .style("fill", isMonthB ? "#111827" : "#6B7280")
         .style("font-weight", isMonthB ? "700" : "400")
         .text(d.getDate());
@@ -646,93 +663,99 @@ function handlePhaseClick(phase, weekStart, weekEnd) {
 // ─────────────────────────────────────────────────────────
 // Transition detail panel (single card, shown on diamond click)
 // ─────────────────────────────────────────────────────────
-function showTransitionDetail(bp, fromPhase, toPhase) {
-  APP_STATE.selectedWeekIdx = null;
-  document.getElementById("week-detail-section").style.display = "none";
-  const panel     = document.getElementById("bp-detail-panel");
-  const { meta }  = APP_STATE;
-  const fromColor = phaseColor(fromPhase.name);
-  const toColor   = phaseColor(toPhase.name);
-  const fromTC    = phaseTextColor(fromPhase.name);
-  const toTC      = phaseTextColor(toPhase.name);
+function phaseAvgHR(phase) {
+  const { weekly, activities } = APP_STATE;
+  if (!activities?.length) return null;
+  const phaseWeeks = weekly.filter(w => w.phase_id === phase.id);
+  if (!phaseWeeks.length) return null;
+  const dates = phaseWeeks.flatMap(w => w.week.includes("/") ? w.week.split("/") : [w.week, w.week]);
+  const minDate = dates.reduce((a, b) => a < b ? a : b);
+  const maxDate = dates.reduce((a, b) => a > b ? a : b);
+  const relevant = activities.filter(a =>
+    a.type === "Run" && a.average_heartrate &&
+    a.start_date.slice(0, 10) >= minDate && a.start_date.slice(0, 10) <= maxDate
+  );
+  if (!relevant.length) return null;
+  return relevant.reduce((s, a) => s + a.average_heartrate, 0) / relevant.length;
+}
+
+function buildTransitionHTML(bp, fromPhase, toPhase) {
+  const fromTC = phaseTextColor(fromPhase.name);
+  const toTC   = phaseTextColor(toPhase.name);
   const fs = fromPhase.stats || {};
   const ts = toPhase.stats   || {};
   const ch = bp.changes      || {};
 
+  const fromHR = phaseAvgHR(fromPhase);
+  const toHR   = phaseAvgHR(toPhase);
+  const hrPct  = fromHR && toHR ? ((toHR - fromHR) / fromHR) * 100 : null;
+
   const metricRows = [
-    {
-      label: "km / week",
-      from:  fs.km_per_week  != null ? `${fs.km_per_week.toFixed(1)} km`  : "—",
-      to:    ts.km_per_week  != null ? `${ts.km_per_week.toFixed(1)} km`  : "—",
-      pct:   ch.km_per_week,
-      bigger: true,
-    },
-    {
-      label: "runs / week",
-      from:  fs.runs_per_week != null ? `${fs.runs_per_week.toFixed(1)}`  : "—",
-      to:    ts.runs_per_week != null ? `${ts.runs_per_week.toFixed(1)}`  : "—",
-      pct:   ch.runs_per_week,
-      bigger: true,
-    },
-    {
-      label: "avg pace",
-      from:  formatPace(fs.avg_pace),
-      to:    formatPace(ts.avg_pace),
-      pct:   ch.avg_pace,
-      bigger: false,   // lower pace = faster = better
-    },
-    {
-      label: "avg run km",
-      from:  fs.avg_run_km != null ? `${fs.avg_run_km.toFixed(1)} km` : "—",
-      to:    ts.avg_run_km != null ? `${ts.avg_run_km.toFixed(1)} km` : "—",
-      pct:   ch.avg_run_km,
-      bigger: true,
-      skip:  ch.avg_run_km == null || Math.abs(ch.avg_run_km) < 5,
-    },
-    {
-      label: "efficiency",
-      from:  fs.efficiency != null ? fs.efficiency.toFixed(4) : "—",
-      to:    ts.efficiency != null ? ts.efficiency.toFixed(4) : "—",
-      pct:   ch.efficiency,
-      bigger: true,
-      skip:  !meta?.has_hr || ch.efficiency == null,
-    },
+    { label: "km / week",   from: fs.km_per_week  != null ? `${fs.km_per_week.toFixed(1)} km` : "—",  to: ts.km_per_week  != null ? `${ts.km_per_week.toFixed(1)} km` : "—",  pct: ch.km_per_week,  bigger: true  },
+    { label: "runs / week", from: fs.runs_per_week != null ? `${fs.runs_per_week.toFixed(1)}`  : "—",  to: ts.runs_per_week != null ? `${ts.runs_per_week.toFixed(1)}` : "—",  pct: ch.runs_per_week, bigger: true  },
+    { label: "avg pace",    from: formatPace(fs.avg_pace), to: formatPace(ts.avg_pace), pct: ch.avg_pace, bigger: false },
+    { label: "heart rate",  from: fromHR != null ? `${Math.round(fromHR)} bpm` : "—", to: toHR != null ? `${Math.round(toHR)} bpm` : "—", pct: hrPct, bigger: false, skip: hrPct == null },
+    { label: "avg run km",  from: fs.avg_run_km != null ? `${fs.avg_run_km.toFixed(1)} km` : "—", to: ts.avg_run_km != null ? `${ts.avg_run_km.toFixed(1)} km` : "—", pct: ch.avg_run_km, bigger: true, skip: ch.avg_run_km == null || Math.abs(ch.avg_run_km) < 5 },
   ];
 
-  const rows = metricRows
+  const tiles = metricRows
     .filter(m => !m.skip && m.pct != null)
     .map(m => {
-      const isGood  = m.bigger ? m.pct > 0 : m.pct < 0;
-      const isFlat  = Math.abs(m.pct) < 1;
-      const pctColor = isFlat ? "#9CA3AF" : isGood ? "#3B6D11" : "#993C1D";
+      const isFlat   = Math.abs(m.pct) < 2;
+      const isGood   = m.bigger ? m.pct > 0 : m.pct < 0;
+      const pctColor = isFlat ? "#9CA3AF" : isGood ? "#16A34A" : "#DC2626";
       const sign     = m.pct > 0 ? "+" : "";
+      const pctText  = isFlat ? "≈" : `${sign}${Math.round(m.pct)}%`;
       return `
-        <tr>
-          <td class="bpd-label">${m.label}</td>
-          <td class="bpd-val-from">${m.from}</td>
-          <td class="bpd-sep">→</td>
-          <td class="bpd-val-to">${m.to}</td>
-          <td class="bpd-pct" style="color:${pctColor}">${sign}${Math.round(m.pct)}%</td>
-        </tr>`;
+        <div class="bpd-tile">
+          <div class="bpd-tile-label">${m.label}</div>
+          <div class="bpd-tile-change" style="color:${pctColor}">${pctText}</div>
+          <div class="bpd-tile-values">${m.from} → ${m.to}</div>
+        </div>`;
     }).join("");
 
-  panel.innerHTML = `
-    <div class="bpd-header">
-      <div class="bpd-phases">
-        <span class="bpd-phase-pill" style="color:${fromTC};background:${fromColor}22">${fromPhase.name}</span>
-        <span class="bpd-arrow-big">→</span>
-        <span class="bpd-phase-pill" style="color:${toTC};background:${toColor}22">${toPhase.name}</span>
+  const fromWeeks = fromPhase.week_end - fromPhase.week_start + 1;
+  const toWeeks   = toPhase.week_end   - toPhase.week_start   + 1;
+
+  return `
+    <div class="bpd-top">
+      <div class="bpd-phase-block">
+        <div class="bpd-phase-name" style="color:${fromTC}">${fromPhase.name}</div>
+        <div class="bpd-phase-dur">${fromWeeks}w</div>
       </div>
-      <div class="bpd-meta">
-        <span class="bpd-date">${bp.date || ""}</span>
-        <button class="bpd-close" onclick="document.getElementById('bp-detail-panel').style.display='none'">×</button>
+      <div class="bpd-transition-arrow">→</div>
+      <div class="bpd-phase-block">
+        <div class="bpd-phase-name" style="color:${toTC}">${toPhase.name}</div>
+        <div class="bpd-phase-dur">${toWeeks}w</div>
       </div>
     </div>
-    <table class="bpd-table">${rows}</table>
-  `;
+    <div class="bpd-tiles">${tiles}</div>`;
+}
 
-  panel.style.display = "block";
-  setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "nearest" }), 80);
+function showTransitionPopover(bp, fromPhase, toPhase, event) {
+  let pop = document.getElementById("bp-popover");
+  if (!pop) {
+    pop = document.createElement("div");
+    pop.id = "bp-popover";
+    document.body.appendChild(pop);
+  }
+  pop.innerHTML = buildTransitionHTML(bp, fromPhase, toPhase);
+
+  const pw = 360;
+  pop.style.display = "block";
+
+  const ph = pop.offsetHeight || 200;
+  const { clientX: mx, clientY: my } = event;
+  const left = Math.min(mx - pw / 2, window.innerWidth - pw - 12);
+  const top  = my - ph - 16;   // above the cursor
+
+  pop.style.left = `${Math.max(8, left)}px`;
+  pop.style.top  = `${Math.max(8, top)}px`;
+}
+
+function hideTransitionPopover() {
+  const pop = document.getElementById("bp-popover");
+  if (pop) pop.style.display = "none";
 }
 
 // ─────────────────────────────────────────────────────────

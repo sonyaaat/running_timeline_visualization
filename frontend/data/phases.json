@@ -3,8 +3,8 @@
     {
       "id": 1,
       "type": "Active",
-      "name": "Moderate Volume / Frequent",
-      "color": "#85B7EB",
+      "name": "Building",
+      "color": "#4ADE80",
       "week_start": 0,
       "week_end": 3,
       "stats": {
@@ -23,8 +23,8 @@
     {
       "id": 2,
       "type": "Active",
-      "name": "Steady Volume / Frequent",
-      "color": "#7F77DD",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 4,
       "week_end": 7,
       "stats": {
@@ -43,8 +43,8 @@
     {
       "id": 3,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 8,
       "week_end": 12,
       "stats": {
@@ -76,8 +76,8 @@
     {
       "id": 5,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Building",
+      "color": "#4ADE80",
       "week_start": 16,
       "week_end": 19,
       "stats": {
@@ -96,8 +96,8 @@
     {
       "id": 6,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Building",
+      "color": "#4ADE80",
       "week_start": 20,
       "week_end": 23,
       "stats": {
@@ -129,8 +129,8 @@
     {
       "id": 8,
       "type": "Active",
-      "name": "Steady Volume",
-      "color": "#7F77DD",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 26,
       "week_end": 29,
       "stats": {
@@ -162,8 +162,8 @@
     {
       "id": 10,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 33,
       "week_end": 35,
       "stats": {
@@ -195,8 +195,8 @@
     {
       "id": 12,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Building",
+      "color": "#4ADE80",
       "week_start": 37,
       "week_end": 40,
       "stats": {
@@ -215,8 +215,8 @@
     {
       "id": 13,
       "type": "Active",
-      "name": "Steady Volume / Frequent",
-      "color": "#7F77DD",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 41,
       "week_end": 45,
       "stats": {
@@ -235,8 +235,8 @@
     {
       "id": 14,
       "type": "Active",
-      "name": "High Volume / Frequent",
-      "color": "#EF9F27",
+      "name": "Peak",
+      "color": "#F59E0B",
       "week_start": 46,
       "week_end": 55,
       "stats": {
@@ -255,8 +255,8 @@
     {
       "id": 15,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 56,
       "week_end": 63,
       "stats": {
@@ -275,8 +275,8 @@
     {
       "id": 16,
       "type": "Active",
-      "name": "Moderate Volume / Consistent",
-      "color": "#D1D5DB",
+      "name": "Recovery",
+      "color": "#93C5FD",
       "week_start": 64,
       "week_end": 67,
       "stats": {
@@ -295,8 +295,8 @@
     {
       "id": 17,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 68,
       "week_end": 71,
       "stats": {
@@ -328,8 +328,8 @@
     {
       "id": 19,
       "type": "Active",
-      "name": "Steady Volume",
-      "color": "#7F77DD",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 74,
       "week_end": 79,
       "stats": {
@@ -361,8 +361,8 @@
     {
       "id": 21,
       "type": "Active",
-      "name": "Steady Volume / Consistent",
-      "color": "#85B7EB",
+      "name": "Base",
+      "color": "#818CF8",
       "week_start": 82,
       "week_end": 88,
       "stats": {
@@ -540,7 +540,7 @@
       "week": "2024-10-07/2024-10-13",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.141485757096489,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 4.6498,
       "long_run_ratio": 1.5232268054539981,
@@ -552,7 +552,7 @@
       "week": "2024-10-14/2024-10-20",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.141485757096489,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 4.6498,
       "long_run_ratio": 1.5232268054539981,
@@ -672,7 +672,7 @@
       "week": "2024-12-23/2024-12-29",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.205611498072129,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 13.79035,
       "long_run_ratio": 1.0889426301725482,
@@ -744,7 +744,7 @@
       "week": "2025-02-03/2025-02-09",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.151983513652756,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 15.0282,
       "long_run_ratio": 1.0,
@@ -756,7 +756,7 @@
       "week": "2025-02-10/2025-02-16",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.151983513652756,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 15.0282,
       "long_run_ratio": 1.0,
@@ -984,7 +984,7 @@
       "week": "2025-06-23/2025-06-29",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.104411145520151,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 8.363800000000001,
       "long_run_ratio": 1.4222482603601232,
@@ -1248,7 +1248,7 @@
       "week": "2025-11-24/2025-11-30",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.262556876228705,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 10.5203,
       "long_run_ratio": 1.097059969772725,
@@ -1344,7 +1344,7 @@
       "week": "2026-01-19/2026-01-25",
       "km_total": 0.0,
       "run_count": 0.0,
-      "avg_pace": 5.2545388398382435,
+      "avg_pace": null,
       "max_run_km": null,
       "avg_run_km": 13.656199999999998,
       "long_run_ratio": 1.4675092631918103,

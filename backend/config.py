@@ -9,26 +9,12 @@ HR_MIN_COVERAGE   = 0.40    # min fraction of runs with HR to include efficiency
 MIN_MERGE_WEEKS   = 3       # active phases shorter than this are merged into adjacent neighbors
 
 PHASE_COLORS = {
-    "Inactive":                      "#D1D5DB",
-    "Sparse":                        "#D1D5DB",
-    "Low Volume":                    "#C0DD97",
-    "Low Volume / Long Runs":        "#97C459",
-    "Moderate Volume":               "#B5D4F4",
-    "Moderate Volume / Long Runs":   "#85B7EB",
-    "Moderate Volume / Fast Weeks":  "#5DCAA5",
-    "Moderate Volume / Frequent":    "#85B7EB",
-    "Steady Volume":                 "#7F77DD",
-    "Steady Volume / Long Runs":     "#AFA9EC",
-    "Steady Volume / Fast Weeks":    "#5DCAA5",
-    "Steady Volume / Consistent":    "#85B7EB",
-    "Steady Volume / Frequent":      "#7F77DD",
-    "High Volume":                   "#EF9F27",
-    "High Volume / Long Runs":       "#BA7517",
-    "High Volume / Fast Weeks":      "#E24B4A",
-    "High Volume / Frequent":        "#EF9F27",
-    "Peak Volume":                   "#D85A30",
-    "Peak Volume / Fast Weeks":      "#A32D2D",
-    "Peak Volume / Long Runs":       "#BA7517",
+    "Inactive":   "#D1D5DB",
+    "Building":   "#4ADE80",  # green   — volume growing
+    "Peak":       "#F59E0B",  # amber   — highest load
+    "Base":       "#818CF8",  # indigo  — stable moderate
+    "Recovery":   "#93C5FD",  # sky     — low volume, rest
+    "Sharpening": "#2DD4BF",  # teal    — tapering, quality
 }
 
 print("[config] Loaded")

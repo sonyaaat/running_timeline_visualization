@@ -4,6 +4,57 @@ import { formatPace } from "../js/utils.js";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// ── Percentile helper ──────────────────────────────────────
+function percentile(sorted, pct) {
+  return sorted[Math.floor(sorted.length * pct)] ?? sorted[sorted.length - 1];
+}
+
+// Build thresholds once from all activities
+function buildThresholds(activities) {
+  const runs = (activities || []).filter(a => a.type === "Run");
+
+  const hrSorted = runs
+    .filter(a => a.average_heartrate)
+    .map(a => a.average_heartrate)
+    .sort((a, b) => a - b);
+
+  const distSorted = runs
+    .map(a => a.distance / 1000)
+    .sort((a, b) => a - b);
+
+  return {
+    hr: {
+      easy:      hrSorted.length ? percentile(hrSorted, 0.25) : 140,
+      aerobic:   hrSorted.length ? percentile(hrSorted, 0.50) : 155,
+      tempo:     hrSorted.length ? percentile(hrSorted, 0.75) : 165,
+      threshold: hrSorted.length ? percentile(hrSorted, 0.90) : 173,
+    },
+    dist: {
+      short: distSorted.length ? percentile(distSorted, 0.25) : 6,
+      long:  distSorted.length ? percentile(distSorted, 0.80) : 16,
+    },
+  };
+}
+
+// Returns zone name + color for a given average HR
+function hrZone(hr, t) {
+  if (!hr) return { name: null, color: "#9CA3AF" };
+  if (hr < t.hr.easy)      return { name: "easy",      color: "#60A5FA" }; // blue
+  if (hr < t.hr.aerobic)   return { name: "aerobic",   color: "#34D399" }; // green
+  if (hr < t.hr.tempo)     return { name: "tempo",     color: "#FBBF24" }; // yellow
+  if (hr < t.hr.threshold) return { name: "threshold", color: "#F97316" }; // orange
+  return                          { name: "hard",       color: "#EF4444" }; // red
+}
+
+// Returns badge label or null
+function runBadge(km, hr, t) {
+  const zone = hrZone(hr, t);
+  if (km >= t.dist.long)                       return "LONG";
+  if (zone.name === "hard" || zone.name === "threshold") return "HARD";
+  if (km <= t.dist.short && (zone.name === "easy" || zone.name === "aerobic")) return "EASY";
+  return null;
+}
+
 export function renderWeekDetail(weekIdx) {
   APP_STATE.selectedWeekIdx = weekIdx;
 
@@ -41,8 +92,8 @@ export function renderWeekDetail(weekIdx) {
     return { date: d, dateStr: ds, acts };
   });
 
-  const totalKm  = weekActs.reduce((s, a) => s + a.distance / 1000, 0);
-  const maxDayKm = Math.max(...days.map(d => d.acts.reduce((s, a) => s + a.distance / 1000, 0)), 0.1);
+  const totalKm   = weekActs.reduce((s, a) => s + a.distance / 1000, 0);
+  const thresholds = buildThresholds(activities);
 
   // Header label from parsed strings (no timezone dependency)
   const fmtStr = s => {
@@ -56,39 +107,57 @@ export function renderWeekDetail(weekIdx) {
   const section = document.getElementById("week-detail-section");
   const content = document.getElementById("week-detail-content");
 
+  const zoomStart = APP_STATE.zoomRange?.weekStart ?? 0;
+  const zoomEnd   = APP_STATE.zoomRange?.weekEnd   ?? (weekly.length - 1);
+  const hasPrev   = weekIdx > zoomStart;
+  const hasNext   = weekIdx < zoomEnd;
+
   content.innerHTML = `
     <div class="wd-header">
-      <div class="wd-title-row">
-        <span class="wd-label">Week of ${headerLabel}</span>
+      <div class="wd-header-left">
+        <span class="wd-label">${headerLabel}</span>
         <span class="wd-summary">${weekActs.length} run${weekActs.length !== 1 ? "s" : ""} · ${totalKm.toFixed(1)} km</span>
       </div>
       <span class="wd-month">${monthLabel}</span>
-      <button class="wd-close" id="wd-close-btn">×</button>
+      <div class="wd-nav">
+        <button class="wd-nav-btn" id="wd-prev-btn" ${hasPrev ? "" : "disabled"}>←</button>
+        <button class="wd-nav-btn" id="wd-next-btn" ${hasNext ? "" : "disabled"}>→</button>
+        <button class="wd-close" id="wd-close-btn">×</button>
+      </div>
     </div>
     <div class="wd-grid">
-      ${days.map((day, di) => renderDayCol(day, di, maxDayKm, pColor)).join("")}
+      ${days.map((day, di) => renderDayCol(day, di, thresholds)).join("")}
     </div>
   `;
 
   document.getElementById("wd-close-btn").addEventListener("click", () => {
     section.style.display = "none";
     APP_STATE.selectedWeekIdx = null;
-    // Re-render timeline to remove highlight — dispatch custom event
     document.dispatchEvent(new CustomEvent("week-deselected"));
   });
+
+  if (hasPrev) {
+    document.getElementById("wd-prev-btn").addEventListener("click", () => {
+      renderWeekDetail(weekIdx - 1);
+      document.dispatchEvent(new CustomEvent("week-selected", { detail: { weekIdx: weekIdx - 1 } }));
+    });
+  }
+  if (hasNext) {
+    document.getElementById("wd-next-btn").addEventListener("click", () => {
+      renderWeekDetail(weekIdx + 1);
+      document.dispatchEvent(new CustomEvent("week-selected", { detail: { weekIdx: weekIdx + 1 } }));
+    });
+  }
 
   section.style.display = "block";
   setTimeout(() => document.getElementById("week-detail-content").scrollIntoView({ behavior: "smooth", block: "center" }), 80);
 }
 
-function renderDayCol(day, dayIndex, maxDayKm, phaseColor) {
-  const isWeekend = dayIndex >= 5; // Sat, Sun
-  const dayKm     = day.acts.reduce((s, a) => s + a.distance / 1000, 0);
+function renderDayCol(day, dayIndex, t) {
+  const isWeekend = dayIndex >= 5;
   const isRest    = day.acts.length === 0;
-  const barPct    = isRest ? 0 : Math.max(8, (dayKm / maxDayKm) * 100);
-
-  const dayName = DAYS[dayIndex];
-  const dateNum = day.date.getDate();
+  const dayName   = DAYS[dayIndex];
+  const dateNum   = day.date.getDate();
 
   if (isRest) {
     return `
@@ -97,32 +166,38 @@ function renderDayCol(day, dayIndex, maxDayKm, phaseColor) {
           <span class="wd-weekday">${dayName}</span>
           <span class="wd-datenum">${dateNum}</span>
         </div>
-        <div class="wd-bar-area"></div>
         <div class="wd-rest-label">rest</div>
       </div>`;
   }
 
-  // For multiple runs in one day (rare but possible), show the primary one inline + list all
   const primary = day.acts[0];
-  const statsHtml = day.acts.map(a => buildRunStats(a)).join('<div class="wd-run-divider"></div>');
+  const km      = day.acts.reduce((s, a) => s + a.distance / 1000, 0);
+  const avgHR   = primary.average_heartrate;
+  const zone    = hrZone(avgHR, t);
+  const badge   = runBadge(km, avgHR, t);
+  const statsHtml = day.acts.map(a => buildRunStats(a, t)).join('<div class="wd-run-divider"></div>');
+
+  const badgeHtml = badge
+    ? `<span class="wd-badge" style="background:${zone.color}">${badge}</span>`
+    : "";
 
   return `
     <div class="wd-day wd-day--run${isWeekend ? " wd-day--weekend" : ""}"
          data-tooltip="${buildTooltipText(day.acts)}"
-         style="--phase-col:${phaseColor}">
+         style="--zone-col:${zone.color}">
+      <div class="wd-zone-accent" style="background:${zone.color}">
+        ${zone.name ? `<span class="wd-zone-label">${zone.name}</span>` : ""}
+      </div>
       <div class="wd-day-head">
         <span class="wd-weekday">${dayName}</span>
         <span class="wd-datenum">${dateNum}</span>
       </div>
-      <div class="wd-bar-area">
-        <div class="wd-bar" style="height:${barPct}%;background:${phaseColor}"></div>
-      </div>
+      ${badgeHtml}
       <div class="wd-run-stats">${statsHtml}</div>
-      <div class="wd-tooltip-box"></div>
     </div>`;
 }
 
-function buildRunStats(a) {
+function buildRunStats(a, t) {
   const km    = (a.distance / 1000).toFixed(1);
   const pace  = formatPace(1000 / a.average_speed / 60);
   const time  = fmtTime(a.moving_time);

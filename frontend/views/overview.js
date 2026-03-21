@@ -1,5 +1,5 @@
 import APP_STATE from "../js/state.js";
-import { phaseColor, phaseTextColor } from "../js/colors.js";
+import { phaseColor, phaseTextColor, PHASE_SCALE } from "../js/colors.js";
 import { formatWeekLabel, showTooltip, hideTooltip } from "../js/utils.js";
 import { renderDetail as renderZoomDetail } from "./zoomTimeline.js";
 
@@ -56,40 +56,76 @@ export function renderOverview() {
 
   const cy = STRIP_LEG / 2;
 
-  // Unique phase names — deduplicate by volume part only ("Steady Volume / Consistent" → "Steady Volume")
-  const seenNames = new Set();
-  const uniquePhases = activePhases.filter(p => {
-    const vol = p.name.split(" / ")[0];
-    if (seenNames.has(vol)) return false;
-    seenNames.add(vol);
-    return true;
-  });
+  // Fixed legend — one entry per phase type
+  const PHASE_DESCRIPTIONS = {
+    "Building":   "Volume is growing week over week. The body is adapting to increasing load — a preparation stage before peak training.",
+    "Peak":       "Highest training load of the cycle. Volume is at maximum and stable. Typically the hardest period before a race.",
+    "Base":       "Steady, moderate volume. No clear growth or drop. Maintaining fitness and consistency — the most common phase.",
+    "Recovery":   "Volume is significantly below normal. Usually follows a peak or race, or reflects illness / low motivation.",
+    "Sharpening": "Volume drops while pace improves. Classic pre-race tapering — less km but higher quality. Body is getting sharp.",
+  };
 
+  const usedNames = new Set(activePhases.map(p => p.name));
   let lx = 0;
-  uniquePhases.forEach(p => {
-    const col = phaseColor(p.name);
-    // Colored circle
-    legBarG.append("circle")
+  PHASE_SCALE.filter(p => usedNames.has(p.name)).forEach(p => {
+    const itemW = 16 + p.label.length * 7 + 18;
+    const itemG = legBarG.append("g")
+      .style("cursor", "default")
+      .on("mouseover", (event) => {
+        showTooltip(tooltip, event,
+          `<b style="color:${p.bg}">${p.label}</b><br>
+           <span style="color:#6B7280;font-size:12px;line-height:1.5">${PHASE_DESCRIPTIONS[p.name] ?? ""}</span>`);
+      })
+      .on("mousemove", (event) => {
+        tooltip.style("left", (event.pageX + 12) + "px")
+               .style("top",  (event.pageY - 28) + "px");
+      })
+      .on("mouseout", () => hideTooltip(tooltip));
+
+    itemG.append("circle")
       .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
-      .attr("fill", col).attr("opacity", 0.85);
-    // Phase name
-    legBarG.append("text")
+      .attr("fill", p.bg).attr("opacity", 0.9);
+    itemG.append("text")
       .attr("x", lx + 16).attr("y", cy)
       .attr("dominant-baseline", "middle")
       .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
-      .text(p.name.split(" / ")[0]); // volume part only e.g. "Peak Volume"
-    lx += 16 + p.name.split(" / ")[0].length * 7 + 18;
+      .text(p.label);
+
+    // invisible hit area
+    itemG.append("rect")
+      .attr("x", lx).attr("y", cy - 10)
+      .attr("width", itemW).attr("height", 20)
+      .attr("fill", "transparent");
+
+    lx += itemW;
   });
 
   // Rest indicator
-  legBarG.append("circle")
+  const restG = legBarG.append("g")
+    .style("cursor", "default")
+    .on("mouseover", (event) => {
+      showTooltip(tooltip, event,
+        `<b style="color:#6B7280">Rest</b><br>
+         <span style="color:#6B7280;font-size:12px;line-height:1.5">No running activity for 10+ days. Gap between training blocks.</span>`);
+    })
+    .on("mousemove", (event) => {
+      tooltip.style("left", (event.pageX + 12) + "px")
+             .style("top",  (event.pageY - 28) + "px");
+    })
+    .on("mouseout", () => hideTooltip(tooltip));
+
+  restG.append("circle")
     .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
     .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
-  legBarG.append("text")
+  restG.append("text")
     .attr("x", lx + 16).attr("y", cy)
     .attr("dominant-baseline", "middle")
     .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
     .text("Rest");
+  restG.append("rect")
+    .attr("x", lx).attr("y", cy - 10)
+    .attr("width", 16 + 4 * 7 + 18).attr("height", 20)
+    .attr("fill", "transparent");
 
   // Drag hint — right-aligned
   legBarG.append("text")
@@ -149,18 +185,7 @@ export function renderOverview() {
           renderDetail(phase.week_start, phase.week_end);
         });
 
-      // Label — only for wide active segments, single short word
-      if (!isInactive && bw >= 72) {
-        const tc      = phaseTextColor(phase.name);
-        const volWord = phase.name.split(" / ")[0].split(" ")[0]; // "Steady", "High", "Moderate"…
-        stripG.append("text")
-          .attr("x", px1 + bw / 2).attr("y", STRIP_H / 2)
-          .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-          .style("font-size", "11px").style("font-weight", "600")
-          .style("pointer-events", "none")
-          .attr("fill", tc).attr("opacity", 0.9)
-          .text(volWord);
-      }
+      // No labels in overview strip — colors + legend above are sufficient
 
       // Separator line
       if (bw > 1) {
