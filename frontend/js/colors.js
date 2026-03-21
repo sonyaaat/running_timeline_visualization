@@ -1,56 +1,40 @@
-const PHASE_COLORS = {
-  "Inactive":                      "#F87171",
-  "Sparse":                        "#F87171",
-  "Low Volume":                    "#C0DD97",
-  "Low Volume / Long Runs":        "#97C459",
-  "Moderate Volume":               "#B5D4F4",
-  "Moderate Volume / Long Runs":   "#85B7EB",
-  "Moderate Volume / Fast Weeks":  "#5DCAA5",
-  "Moderate Volume / Frequent":    "#85B7EB",
-  "Steady Volume":                 "#7F77DD",
-  "Steady Volume / Long Runs":     "#AFA9EC",
-  "Steady Volume / Fast Weeks":    "#5DCAA5",
-  "Steady Volume / Consistent":    "#85B7EB",
-  "Steady Volume / Frequent":      "#7F77DD",
-  "High Volume":                   "#EF9F27",
-  "High Volume / Long Runs":       "#BA7517",
-  "High Volume / Fast Weeks":      "#E24B4A",
-  "High Volume / Frequent":        "#EF9F27",
-  "Peak Volume":                   "#D85A30",
-  "Peak Volume / Fast Weeks":      "#A32D2D",
-  "Peak Volume / Long Runs":       "#BA7517",
+// Volume level → sequential color scale (cool=low, warm=high)
+const VOLUME_COLORS = {
+  "Low":      { bg: "#BEE3B0", text: "#2D6A1F" },  // soft green
+  "Moderate": { bg: "#93C5E8", text: "#1A4F78" },  // light blue
+  "Steady":   { bg: "#7B8FD4", text: "#2A3580" },  // indigo
+  "High":     { bg: "#F5A623", text: "#7A4800" },  // amber
+  "Peak":     { bg: "#E05A3A", text: "#6B1500" },  // red-orange
 };
 
-const PHASE_TEXT_COLORS = {
-  "Inactive":                      "#6B7280",
-  "Sparse":                        "#3B6D11",
-  "Low Volume":                    "#3B6D11",
-  "Low Volume / Long Runs":        "#3B6D11",
-  "Moderate Volume":               "#185FA5",
-  "Moderate Volume / Long Runs":   "#185FA5",
-  "Moderate Volume / Fast Weeks":  "#0F6E56",
-  "Moderate Volume / Frequent":    "#185FA5",
-  "Steady Volume":                 "#3C3489",
-  "Steady Volume / Long Runs":     "#3C3489",
-  "Steady Volume / Fast Weeks":    "#0F6E56",
-  "Steady Volume / Consistent":    "#185FA5",
-  "Steady Volume / Frequent":      "#3C3489",
-  "High Volume":                   "#854F0B",
-  "High Volume / Long Runs":       "#854F0B",
-  "High Volume / Fast Weeks":      "#A32D2D",
-  "High Volume / Frequent":        "#854F0B",
-  "Peak Volume":                   "#7B2D00",
-  "Peak Volume / Fast Weeks":      "#7B0000",
-  "Peak Volume / Long Runs":       "#7B2D00",
-};
+// Character modifier → small label suffix only (no color change)
+function volumeLevel(phaseName) {
+  if (phaseName.startsWith("Low"))      return "Low";
+  if (phaseName.startsWith("Moderate")) return "Moderate";
+  if (phaseName.startsWith("Steady"))   return "Steady";
+  if (phaseName.startsWith("High"))     return "High";
+  if (phaseName.startsWith("Peak"))     return "Peak";
+  return null;
+}
 
 export function phaseColor(phaseName) {
-  return PHASE_COLORS[phaseName] ?? "#D1D5DB";
+  const lvl = volumeLevel(phaseName);
+  return lvl ? VOLUME_COLORS[lvl].bg : "#D1D5DB";
 }
 
 export function phaseTextColor(phaseName) {
-  return PHASE_TEXT_COLORS[phaseName] ?? "#374151";
+  const lvl = volumeLevel(phaseName);
+  return lvl ? VOLUME_COLORS[lvl].text : "#374151";
 }
+
+// Export for legend rendering
+export const VOLUME_SCALE = [
+  { level: "Low",      label: "Low",      ...VOLUME_COLORS["Low"]      },
+  { level: "Moderate", label: "Moderate", ...VOLUME_COLORS["Moderate"] },
+  { level: "Steady",   label: "Steady",   ...VOLUME_COLORS["Steady"]   },
+  { level: "High",     label: "High",     ...VOLUME_COLORS["High"]     },
+  { level: "Peak",     label: "Peak",     ...VOLUME_COLORS["Peak"]     },
+];
 
 export function inactiveColor() { return "#F87171"; }
 export function inactiveTextColor() { return "#7F1D1D"; }

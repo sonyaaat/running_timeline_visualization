@@ -100,9 +100,10 @@ async function init() {
       APP_STATE.zoomRange = null;
       APP_STATE.hasZoom   = false;
       APP_STATE.selectedPhaseId = null;
-      document.getElementById("section-detail").style.display = "none";
-      document.getElementById("heatmap-section").style.display = "none";
-      document.getElementById("eff-label").style.display = "none";
+      document.getElementById("section-detail").style.display       = "none";
+      document.getElementById("heatmap-section").style.display      = "none";
+      document.getElementById("eff-label").style.display            = "none";
+      document.getElementById("bp-detail-panel").style.display      = "none";
       renderOverview();
     });
 

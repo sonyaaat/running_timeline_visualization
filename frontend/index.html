@@ -39,28 +39,40 @@
 
     <!-- Section 2: Zoom + detail (hidden until drag) -->
     <section id="section-detail" style="display:none">
-      <div id="zoom-header">
-        <button id="btn-reset">← All phases</button>
-        <span id="zoom-label"></span>
+
+      <!-- Header (constrained) -->
+      <div class="detail-inner">
+        <div id="zoom-header">
+          <button id="btn-reset">← All phases</button>
+          <span id="zoom-label"></span>
+        </div>
+        <div class="section-label">Phase Timeline</div>
       </div>
 
-      <!-- 2a: Detailed timeline with phase labels -->
-      <div class="section-label">Phase Timeline</div>
+      <!-- 2a: Full-width detailed timeline -->
       <div id="zoom-timeline-chart"></div>
 
-      <!-- 2b: Breakpoint cards -->
-      <div class="section-label" id="bp-section-label">Phase Transitions</div>
-      <div id="breakpoints-container"></div>
+      <!-- Rest of detail (constrained) -->
+      <div class="detail-inner">
 
-      <!-- 2c: Weekly heatmap (appears when phase is clicked) -->
-      <div id="heatmap-section" style="display:none">
-        <div class="section-label">Weekly Pattern — <span id="heatmap-phase-name"></span></div>
-        <div id="heatmap-chart"></div>
+        <!-- 2b: Single transition detail card (shown on diamond click) -->
+        <div id="bp-detail-panel" style="display:none"></div>
+
+        <!-- legacy cards — not shown -->
+        <div class="section-label" id="bp-section-label" style="display:none">Phase Transitions</div>
+        <div id="breakpoints-container" style="display:none"></div>
+
+        <!-- 2c: Weekly heatmap (appears when phase is clicked) -->
+        <div id="heatmap-section" style="display:none">
+          <div class="section-label">Weekly Pattern — <span id="heatmap-phase-name"></span></div>
+          <div id="heatmap-chart"></div>
+        </div>
+
+        <!-- 2d: Efficiency chart -->
+        <div class="section-label" id="eff-label" style="display:none">Pace–HR Efficiency</div>
+        <div id="efficiency-chart"></div>
+
       </div>
-
-      <!-- 2d: Efficiency chart -->
-      <div class="section-label" id="eff-label" style="display:none">Pace–HR Efficiency</div>
-      <div id="efficiency-chart"></div>
     </section>
 
   </div>

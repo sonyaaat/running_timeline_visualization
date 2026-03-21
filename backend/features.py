@@ -67,9 +67,10 @@ def fill_calendar(weekly: pd.DataFrame) -> pd.DataFrame:
     # Fill missing with 0 for km_total, run_count
     merged["km_total"] = merged["km_total"].fillna(0)
     merged["run_count"] = merged["run_count"].fillna(0)
-    # Forward-fill for avg_pace, long_run_ratio, avg_run_km, efficiency
-    for col in ["avg_pace", "long_run_ratio", "avg_run_km", "efficiency"]:
+    # Forward-fill only non-pace columns; avg_pace stays null for empty weeks
+    for col in ["long_run_ratio", "avg_run_km", "efficiency"]:
         merged[col] = merged[col].ffill()
+    # avg_pace: null for weeks with no runs (do not carry forward)
     merged["long_run_ratio"] = merged["long_run_ratio"].fillna(1.0)
     merged["km_4w_slope"] = _km_rolling_slope(merged["km_total"].values)
     n_empty = (merged["run_count"] == 0).sum()
