@@ -72,8 +72,14 @@ body {
 #section-overview {
   width: 100%;
   padding: 0 32px;
-  margin-bottom: 40px;
+  margin-bottom: 120px;
   box-sizing: border-box;
+}
+
+/* Detail section gets top breathing room so Phase Timeline centers naturally */
+#section-detail {
+  padding-top: 80px;
+  padding-bottom: 320px;
 }
 
 .section-label {

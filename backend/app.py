@@ -80,6 +80,18 @@ def trigger_pipeline():
     return jsonify({"started": True})
 
 
+@app.route("/api/activities")
+def get_activities():
+    """Serve raw activities for week detail view."""
+    import json
+    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw_activities.json")
+    try:
+        with open(data_path) as f:
+            return jsonify(json.load(f))
+    except FileNotFoundError:
+        return jsonify([])
+
+
 if __name__ == "__main__":
     print("[app] Starting Running Phase Explorer server...")
     print("[app] Open http://localhost:5000")

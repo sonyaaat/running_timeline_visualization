@@ -102,8 +102,9 @@ async function init() {
       APP_STATE.selectedPhaseId = null;
       document.getElementById("section-detail").style.display       = "none";
       document.getElementById("heatmap-section").style.display      = "none";
-      document.getElementById("eff-label").style.display            = "none";
-      document.getElementById("bp-detail-panel").style.display      = "none";
+document.getElementById("bp-detail-panel").style.display      = "none";
+      document.getElementById("week-detail-section").style.display  = "none";
+      APP_STATE.selectedWeekIdx = null;
       renderOverview();
     });
 

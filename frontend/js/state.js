@@ -9,6 +9,8 @@ const APP_STATE = {
   selectedPhaseId: null,  // which phase is clicked in zoom view
   zoomRange:       null,  // { weekStart, weekEnd } — current drag selection
   hasZoom:         false, // whether zoom view is visible
+  activities:      [],   // raw activities from /api/activities
+  selectedWeekIdx: null, // absolute week index currently selected
 };
 
 export default APP_STATE;

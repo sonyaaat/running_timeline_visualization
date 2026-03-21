@@ -1,14 +1,14 @@
 import APP_STATE from "../js/state.js";
-import { phaseColor, phaseTextColor, VOLUME_SCALE } from "../js/colors.js";
+import { phaseColor, phaseTextColor } from "../js/colors.js";
 import { formatWeekLabel, showTooltip, hideTooltip } from "../js/utils.js";
 import { renderDetail as renderZoomDetail } from "./zoomTimeline.js";
 
-const STRIP_H    = 100;
-const STRIP_LEG  = 30;
+const STRIP_H    = 32;
+const STRIP_LEG  = 44;
 const CHART_H    = 480;
 const AXIS_H     = 40;
 const LEGEND_H   = 26;
-const MARGIN     = { top: 16, right: 64, bottom: 10, left: 60 };
+const MARGIN     = { top: 16, right: 20, bottom: 10, left: 60 };
 
 // ─────────────────────────────────────────────────────────
 // Public: renderOverview
@@ -50,51 +50,53 @@ export function renderOverview() {
   const inactivePhases = phases.filter(p => p.type === "Inactive");
 
   // ─────────────────────────────────────────────────────────
-  // ROW 1 — Volume legend bar
+  // ROW 1 — Phase color legend + drag hint
   // ─────────────────────────────────────────────────────────
   const legBarG = root.append("g").attr("class", "volume-legend");
 
-  // "Training load:" label
-  legBarG.append("text")
-    .attr("x", 0).attr("y", STRIP_LEG / 2)
-    .attr("dominant-baseline", "middle")
-    .style("font-size", "10px").style("fill", "#9CA3AF")
-    .text("Training load:");
+  const cy = STRIP_LEG / 2;
 
-  // Colored boxes for each volume level + label
-  const BOX = 12;
-  let lx = 88;
-  VOLUME_SCALE.forEach(({ label, bg }) => {
-    legBarG.append("rect")
-      .attr("x", lx).attr("y", STRIP_LEG / 2 - BOX / 2)
-      .attr("width", BOX).attr("height", BOX).attr("rx", 2)
-      .attr("fill", bg).attr("stroke", "rgba(0,0,0,0.1)").attr("stroke-width", 0.5);
-    legBarG.append("text")
-      .attr("x", lx + BOX + 4).attr("y", STRIP_LEG / 2)
-      .attr("dominant-baseline", "middle")
-      .style("font-size", "10px").style("fill", "#6B7280")
-      .text(label);
-    lx += BOX + 4 + label.length * 6 + 10;
+  // Unique phase names — deduplicate by volume part only ("Steady Volume / Consistent" → "Steady Volume")
+  const seenNames = new Set();
+  const uniquePhases = activePhases.filter(p => {
+    const vol = p.name.split(" / ")[0];
+    if (seenNames.has(vol)) return false;
+    seenNames.add(vol);
+    return true;
   });
 
-  // Inactive box
-  legBarG.append("rect")
-    .attr("x", lx).attr("y", STRIP_LEG / 2 - BOX / 2)
-    .attr("width", BOX).attr("height", BOX).attr("rx", 2)
-    .attr("fill", "url(#inactive-stripe)").attr("stroke", "rgba(0,0,0,0.1)").attr("stroke-width", 0.5);
-  legBarG.append("text")
-    .attr("x", lx + BOX + 4).attr("y", STRIP_LEG / 2)
-    .attr("dominant-baseline", "middle")
-    .style("font-size", "10px").style("fill", "#6B7280")
-    .text("Rest");
-  lx += BOX + 4 + 30;
+  let lx = 0;
+  uniquePhases.forEach(p => {
+    const col = phaseColor(p.name);
+    // Colored circle
+    legBarG.append("circle")
+      .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
+      .attr("fill", col).attr("opacity", 0.85);
+    // Phase name
+    legBarG.append("text")
+      .attr("x", lx + 16).attr("y", cy)
+      .attr("dominant-baseline", "middle")
+      .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+      .text(p.name.split(" / ")[0]); // volume part only e.g. "Peak Volume"
+    lx += 16 + p.name.split(" / ")[0].length * 7 + 18;
+  });
 
-  // Character note
+  // Rest indicator
+  legBarG.append("circle")
+    .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
+    .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
   legBarG.append("text")
-    .attr("x", lx + 8).attr("y", STRIP_LEG / 2)
+    .attr("x", lx + 16).attr("y", cy)
     .attr("dominant-baseline", "middle")
-    .style("font-size", "10px").style("fill", "#C0C4CC")
-    .text("· / Long Runs, / Fast Weeks, / Frequent, / Consistent = training character");
+    .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+    .text("Rest");
+
+  // Drag hint — right-aligned
+  legBarG.append("text")
+    .attr("x", innerW).attr("y", cy)
+    .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+    .style("font-size", "12px").style("fill", "#9CA3AF")
+    .text("drag any period to explore in detail →");
 
   // ─────────────────────────────────────────────────────────
   // ROW 2 — Phase strip
@@ -147,91 +149,17 @@ export function renderOverview() {
           renderDetail(phase.week_start, phase.week_end);
         });
 
-      // Labels — adaptive based on available width
-      if (bw >= 32 && !isInactive) {
-        const tc = phaseTextColor(phase.name);
-        const km = s.km_per_week != null ? s.km_per_week.toFixed(0) : null;
-
-        // Parse name into volume word + character modifier
-        const parts    = phase.name.split(" / ");
-        const volFull  = parts[0];               // "Steady Volume"
-        const volShort = volFull.split(" ")[0];  // "Steady"
-        const charPart = parts[1] ?? null;        // "Consistent" | null
-
-        // ── Tier 1: very narrow (32–55px) — one word only
-        if (bw < 56) {
-          stripG.append("text")
-            .attr("x", px1 + bw / 2).attr("y", STRIP_H / 2)
-            .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-            .style("font-size", "10px").style("font-weight", "700")
-            .style("pointer-events", "none")
-            .attr("fill", tc).attr("opacity", opacity)
-            .text(volShort);
-
-        // ── Tier 2: medium (56–110px) — volume word + character
-        } else if (bw < 112) {
-          const cy = charPart ? STRIP_H / 2 - 9 : STRIP_H / 2;
-          stripG.append("text")
-            .attr("x", px1 + bw / 2).attr("y", cy)
-            .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-            .style("font-size", "12px").style("font-weight", "700")
-            .style("pointer-events", "none")
-            .attr("fill", tc).attr("opacity", opacity)
-            .text(volShort);
-          if (charPart) {
-            stripG.append("text")
-              .attr("x", px1 + bw / 2).attr("y", cy + 17)
-              .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-              .style("font-size", "10px").style("font-weight", "400")
-              .style("pointer-events", "none")
-              .attr("fill", tc).attr("opacity", opacity * 0.8)
-              .text(`/ ${charPart}`);
-          }
-
-        // ── Tier 3: wide (≥112px) — full volume + character + stats
-        } else {
-          const hasStats  = km != null;
-          const lineCount = 1 + (charPart ? 1 : 0) + (hasStats ? 1 : 0);
-          const lineH     = 17;
-          let ly = STRIP_H / 2 - ((lineCount - 1) * lineH) / 2;
-
-          stripG.append("text")
-            .attr("x", px1 + bw / 2).attr("y", ly)
-            .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-            .style("font-size", "13px").style("font-weight", "700")
-            .style("pointer-events", "none")
-            .attr("fill", tc).attr("opacity", opacity)
-            .text(volFull);
-          ly += lineH;
-
-          if (charPart) {
-            stripG.append("text")
-              .attr("x", px1 + bw / 2).attr("y", ly)
-              .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-              .style("font-size", "11px").style("font-weight", "400")
-              .style("pointer-events", "none")
-              .attr("fill", tc).attr("opacity", opacity * 0.8)
-              .text(`/ ${charPart}`);
-            ly += lineH;
-          }
-
-          if (hasStats) {
-            stripG.append("text")
-              .attr("x", px1 + bw / 2).attr("y", ly)
-              .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-              .style("font-size", "10px").style("font-weight", "400")
-              .style("pointer-events", "none")
-              .attr("fill", tc).attr("opacity", opacity * 0.6)
-              .text(`${km} km/w · ${weeks}w`);
-          }
-        }
-      } else if (bw >= 20 && isInactive) {
+      // Label — only for wide active segments, single short word
+      if (!isInactive && bw >= 72) {
+        const tc      = phaseTextColor(phase.name);
+        const volWord = phase.name.split(" / ")[0].split(" ")[0]; // "Steady", "High", "Moderate"…
         stripG.append("text")
           .attr("x", px1 + bw / 2).attr("y", STRIP_H / 2)
           .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-          .style("font-size", "11px").style("pointer-events", "none")
-          .attr("fill", "#9CA3AF").attr("opacity", opacity)
-          .text("–");
+          .style("font-size", "11px").style("font-weight", "600")
+          .style("pointer-events", "none")
+          .attr("fill", tc).attr("opacity", 0.9)
+          .text(volWord);
       }
 
       // Separator line
@@ -318,124 +246,49 @@ export function renderOverview() {
   const kmArea = d3.area()
     .x(d => x(d.weekIdx)).y0(CHART_H).y1(d => yKm(d.km))
     .curve(d3.curveMonotoneX);
+  // Build set of week indices that belong to inactive phases
+  const inactiveWeekSet = new Set();
+  inactivePhases.forEach(p => {
+    for (let w = p.week_start; w <= p.week_end; w++) inactiveWeekSet.add(w);
+  });
+  const isInactiveIdx = weekIdx => inactiveWeekSet.has(Math.floor(weekIdx));
+
+  // Active-only line — breaks across inactive phases
   const kmLine = d3.line()
+    .defined(d => !isInactiveIdx(d.weekIdx))
     .x(d => x(d.weekIdx)).y(d => yKm(d.km))
     .curve(d3.curveMonotoneX);
 
+  // Dashed bridge line across inactive gaps
+  const kmBridge = d3.line()
+    .x(d => x(d.weekIdx)).y(d => yKm(d.km))
+    .curve(d3.curveLinear);
+
   chartG.append("path").datum(smoothKm)
     .attr("fill", "rgba(99,102,241,0.12)").attr("d", kmArea);
+
+  // Dashed bridges across each inactive phase
+  inactivePhases.forEach(p => {
+    const before = smoothKm.filter(d => Math.floor(d.weekIdx) === p.week_start - 1);
+    const after  = smoothKm.filter(d => Math.floor(d.weekIdx) === p.week_end + 1);
+    if (before.length && after.length) {
+      chartG.append("path")
+        .datum([before[before.length - 1], after[0]])
+        .attr("fill", "none")
+        .attr("stroke", "rgba(99,102,241,0.28)")
+        .attr("stroke-width", 1.2)
+        .attr("stroke-dasharray", "4,5")
+        .attr("d", kmBridge);
+    }
+  });
+
+  // Solid line for active portions
   chartG.append("path").datum(smoothKm)
     .attr("fill", "none")
     .attr("stroke", "rgba(99,102,241,0.6)")
     .attr("stroke-width", 1.8)
     .attr("d", kmLine);
 
-  // ── Pace trend ──
-  const rawPace = weekly.map((w, i) => ({
-    weekIdx: i + 0.5,
-    pace: (w.avg_pace != null && w.run_count > 0) ? w.avg_pace : null
-  }));
-  // 4-week rolling average — stops at any gap (inactive week), never bridges across
-  const paceTrend = rawPace.map((d, i, arr) => {
-    if (d.pace == null) return { weekIdx: d.weekIdx, pace: null };
-    const win = [];
-    for (let j = i; j >= Math.max(0, i - 3); j--) {
-      if (arr[j].pace == null) break; // stop at gap, don't look further back
-      win.push(arr[j]);
-    }
-    return { weekIdx: d.weekIdx, pace: win.reduce((s, v) => s + v.pace, 0) / win.length };
-  });
-
-  const activePaceTrend = paceTrend.filter(d => d.pace != null);
-  let yPace = null;
-  if (activePaceTrend.length > 1) {
-    const [pMin, pMax] = d3.extent(activePaceTrend, d => d.pace);
-    const pPad = Math.max((pMax - pMin) * 0.15, 0.15);
-    // Inverted: lower pace value = faster = higher on chart
-    yPace = d3.scaleLinear()
-      .domain([pMax + pPad, pMin - pPad])
-      .range([CHART_H - 8, 8]);
-
-    // Right Y-axis: pace ticks
-    const paceTicks = yPace.ticks(5);
-    paceTicks.forEach(val => {
-      chartG.append("text")
-        .attr("x", innerW + 6).attr("y", yPace(val))
-        .attr("text-anchor", "start").attr("dominant-baseline", "middle")
-        .style("font-size", "10px").style("fill", "rgba(249,115,22,0.7)")
-        .text(fmtPaceShort(val));
-    });
-
-    // Right axis title
-    chartG.append("text")
-      .attr("transform", `translate(${innerW + 46},${CHART_H / 2}) rotate(90)`)
-      .attr("text-anchor", "middle")
-      .style("font-size", "10px").style("fill", "rgba(249,115,22,0.7)")
-      .text("pace /km");
-
-    // Dashed bridge across gaps (inactive periods) — drawn first, behind solid line
-    const gapLine = d3.line()
-      .x(d => x(d.weekIdx)).y(d => yPace(d.pace))
-      .curve(d3.curveLinear);
-
-    // Find gap segments: pairs of (last active before gap, first active after gap)
-    for (let i = 1; i < paceTrend.length; i++) {
-      if (paceTrend[i - 1].pace != null && paceTrend[i].pace == null) {
-        // start of gap — find end
-        let j = i;
-        while (j < paceTrend.length && paceTrend[j].pace == null) j++;
-        if (j < paceTrend.length) {
-          chartG.append("path")
-            .datum([paceTrend[i - 1], paceTrend[j]])
-            .attr("fill", "none")
-            .attr("stroke", "#F97316")
-            .attr("stroke-width", 1.2)
-            .attr("stroke-dasharray", "3,4")
-            .attr("opacity", 0.35)
-            .attr("d", gapLine);
-        }
-      }
-    }
-
-    // Solid pace line — breaks at inactive weeks
-    const paceLine = d3.line()
-      .defined(d => d.pace != null)
-      .x(d => x(d.weekIdx)).y(d => yPace(d.pace))
-      .curve(d3.curveMonotoneX);
-
-    chartG.append("path").datum(paceTrend)
-      .attr("fill", "none")
-      .attr("stroke", "#F97316")
-      .attr("stroke-width", 2)
-      .attr("opacity", 0.8)
-      .attr("d", paceLine);
-
-    // Annotate best pace point
-    const bestD = activePaceTrend.reduce((a, b) => b.pace < a.pace ? b : a);
-    const bestX = x(bestD.weekIdx);
-    const bestY = yPace(bestD.pace);
-    chartG.append("circle")
-      .attr("cx", bestX).attr("cy", bestY).attr("r", 4)
-      .attr("fill", "#F97316").attr("stroke", "white").attr("stroke-width", 1.5);
-    chartG.append("text")
-      .attr("x", Math.min(bestX, innerW - 70)).attr("y", bestY - 10)
-      .style("font-size", "10px").style("fill", "#F97316").style("font-weight", "600")
-      .text(`best ${fmtPaceShort(bestD.pace)}`);
-  }
-
-  // Annotate peak km
-  const peakKmD = smoothKm.reduce((a, b) => b.km > a.km ? b : a, smoothKm[0]);
-  if (peakKmD) {
-    const pkX = x(peakKmD.weekIdx);
-    const pkY = yKm(peakKmD.km);
-    chartG.append("circle")
-      .attr("cx", pkX).attr("cy", pkY).attr("r", 3.5)
-      .attr("fill", "rgba(99,102,241,0.8)").attr("stroke", "white").attr("stroke-width", 1.5);
-    chartG.append("text")
-      .attr("x", Math.min(pkX, innerW - 60)).attr("y", pkY - 10)
-      .style("font-size", "10px").style("fill", "rgba(99,102,241,0.9)").style("font-weight", "600")
-      .text(`peak ${Math.round(peakKmD.km)} km`);
-  }
 
   // Phase boundary lines
   const boundaries = new Set();
@@ -593,22 +446,11 @@ export function renderOverview() {
   const legendG = root.append("g")
     .attr("transform", `translate(0,${STRIP_LEG + STRIP_H + CHART_H + AXIS_H})`);
 
-  // km/week
+  // km/week swatch
   legendG.append("rect").attr("x", 0).attr("y", 5).attr("width", 14).attr("height", 4)
     .attr("rx", 2).attr("fill", "rgba(99,102,241,0.5)");
   legendG.append("text").attr("x", 20).attr("y", 13)
-    .style("font-size", "10px").style("fill", "#6B7280").text("weekly km (area)");
-
-  // pace trend
-  legendG.append("rect").attr("x", 120).attr("y", 6).attr("width", 14).attr("height", 2)
-    .attr("rx", 1).attr("fill", "#F97316").attr("opacity", 0.8);
-  legendG.append("text").attr("x", 140).attr("y", 13)
-    .style("font-size", "10px").style("fill", "#6B7280").text("avg pace — lower = faster (right axis)");
-
-  // drag hint
-  legendG.append("text").attr("x", innerW).attr("y", 13)
-    .style("font-size", "10px").style("fill", "#C0C4CC").style("text-anchor", "end")
-    .text("drag to zoom · click to reset");
+    .style("font-size", "10px").style("fill", "#9CA3AF").text("weekly km");
 }
 
 // ─────────────────────────────────────────────────────────
@@ -618,9 +460,11 @@ export function resetZoom() {
   APP_STATE.zoomRange       = null;
   APP_STATE.hasZoom         = false;
   APP_STATE.selectedPhaseId = null;
-  document.getElementById("section-detail").style.display  = "none";
-  document.getElementById("heatmap-section").style.display = "none";
-  document.getElementById("eff-label").style.display       = "none";
+  APP_STATE.selectedWeekIdx = null;
+  document.getElementById("section-detail").style.display      = "none";
+  document.getElementById("heatmap-section").style.display     = "none";
+document.getElementById("bp-detail-panel").style.display     = "none";
+  document.getElementById("week-detail-section").style.display = "none";
   d3.select(window).on("mousemove.overview", null).on("mouseup.overview", null);
   renderOverview();
 }
@@ -632,6 +476,9 @@ function renderDetail(weekStart, weekEnd) {
   APP_STATE.zoomRange       = { weekStart, weekEnd };
   APP_STATE.hasZoom         = true;
   APP_STATE.selectedPhaseId = null;
+  APP_STATE.selectedWeekIdx = null;
+  document.getElementById("bp-detail-panel").style.display     = "none";
+  document.getElementById("week-detail-section").style.display = "none";
 
   const weekly     = APP_STATE.weekly;
   const wStart     = weekly[weekStart];

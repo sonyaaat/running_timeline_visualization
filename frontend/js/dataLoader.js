@@ -18,5 +18,13 @@ export async function loadData() {
   APP_STATE.breakpoints = data.breakpoints;
   APP_STATE.meta        = data.meta;
 
+  try {
+    const actRes = await fetch("data/activities.json");
+    APP_STATE.activities = actRes.ok ? await actRes.json() : [];
+  } catch (_) {
+    APP_STATE.activities = [];
+  }
+  console.log(`[data] Loaded ${APP_STATE.activities.length} raw activities`);
+
   return data;
 }

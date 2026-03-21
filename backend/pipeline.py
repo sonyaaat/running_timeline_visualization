@@ -260,6 +260,11 @@ def run_pipeline(force_refresh: bool = False) -> dict:
     frontend_path = os.path.join(root, FRONTEND_DATA_PATH)
     os.makedirs(os.path.dirname(frontend_path), exist_ok=True)
     shutil.copy(out_path, frontend_path)
+    # Also copy raw activities to frontend/data for static serving
+    activities_src = os.path.join(root, "data", "raw_activities.json")
+    activities_dst = os.path.join(root, "frontend", "data", "activities.json")
+    if os.path.exists(activities_src):
+        shutil.copy(activities_src, activities_dst)
     # Final summary
     log("[pipeline] ══════════════════════════════")
     log(f"[pipeline] ✓ {len(weekly)} weeks analyzed")
