@@ -9,7 +9,7 @@ HR_MIN_COVERAGE   = 0.40    # min fraction of runs with HR to include efficiency
 MIN_MERGE_WEEKS   = 3       # active phases shorter than this are merged into adjacent neighbors
 
 PHASE_COLORS = {
-    "Inactive":   "#D1D5DB",
+    "Inactive":   "#B0B7C3",
     "Building":   "#4ADE80",  # green   — volume growing
     "Peak":       "#F59E0B",  # amber   — highest load
     "Base":       "#818CF8",  # indigo  — stable moderate

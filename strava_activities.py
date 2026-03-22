@@ -26,6 +26,7 @@ def fetch_and_cache_activities():
         if a.type not in RUN_TYPES:
             continue
         activities_data.append({
+            "name": str(a.name) if hasattr(a, "name") and a.name else None,
             "start_date": a.start_date.isoformat() if hasattr(a, "start_date") and a.start_date else None,
             "distance": float(a.distance) if hasattr(a, "distance") and a.distance else None,
             "moving_time": int(a.moving_time.total_seconds()) if hasattr(a, "moving_time") and a.moving_time else None,

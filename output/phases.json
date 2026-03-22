@@ -65,64 +65,64 @@
       "name": "Inactive",
       "color": "#D1D5DB",
       "week_start": 13,
-      "week_end": 15,
-      "weeks": 3,
-      "date_start": "2024-10-07",
-      "date_end": "2024-10-27",
-      "duration_weeks": 3,
+      "week_end": 14,
+      "weeks": 2,
+      "date_start": "2024-10-06",
+      "date_end": "2024-10-21",
+      "duration_weeks": 2,
       "stats": null,
       "id": 4
     },
     {
       "id": 5,
       "type": "Active",
-      "name": "Building",
-      "color": "#4ADE80",
-      "week_start": 16,
-      "week_end": 19,
+      "name": "Base",
+      "color": "#818CF8",
+      "week_start": 15,
+      "week_end": 18,
       "stats": {
-        "km_per_week": 19.01,
-        "runs_per_week": 2.25,
-        "avg_pace": 5.48,
-        "avg_run_km": 8.1,
-        "efficiency": 0.0178
+        "km_per_week": 21.76,
+        "runs_per_week": 2.75,
+        "avg_pace": 5.51,
+        "avg_run_km": 7.2,
+        "efficiency": 0.0177
       },
-      "trend": "building",
-      "trend_slope": 6.1,
-      "date_start": "2024-10-28",
-      "date_end": "2024-11-24",
+      "trend": "tapering",
+      "trend_slope": -2.29,
+      "date_start": "2024-10-21",
+      "date_end": "2024-11-17",
       "duration_weeks": 4
     },
     {
       "id": 6,
       "type": "Active",
-      "name": "Building",
-      "color": "#4ADE80",
-      "week_start": 20,
+      "name": "Base",
+      "color": "#818CF8",
+      "week_start": 19,
       "week_end": 23,
       "stats": {
-        "km_per_week": 23.05,
-        "runs_per_week": 1.75,
-        "avg_pace": 5.55,
-        "avg_run_km": 12.59,
+        "km_per_week": 23.51,
+        "runs_per_week": 1.8,
+        "avg_pace": 5.53,
+        "avg_run_km": 12.61,
         "efficiency": 0.0176
       },
       "trend": "building",
-      "trend_slope": 3.28,
-      "date_start": "2024-11-25",
+      "trend_slope": 1.18,
+      "date_start": "2024-11-18",
       "date_end": "2024-12-22",
-      "duration_weeks": 4
+      "duration_weeks": 5
     },
     {
       "type": "Inactive",
       "name": "Inactive",
       "color": "#D1D5DB",
       "week_start": 24,
-      "week_end": 25,
-      "weeks": 2,
+      "week_end": 24,
+      "weeks": 1,
       "date_start": "2024-12-23",
-      "date_end": "2025-01-05",
-      "duration_weeks": 2,
+      "date_end": "2024-12-31",
+      "duration_weeks": 1,
       "stats": null,
       "id": 7
     },
@@ -131,53 +131,53 @@
       "type": "Active",
       "name": "Base",
       "color": "#818CF8",
-      "week_start": 26,
+      "week_start": 25,
       "week_end": 29,
       "stats": {
-        "km_per_week": 21.33,
-        "runs_per_week": 1.75,
-        "avg_pace": 5.36,
-        "avg_run_km": 13.35,
-        "efficiency": 0.0183
+        "km_per_week": 21.3,
+        "runs_per_week": 1.8,
+        "avg_pace": 5.48,
+        "avg_run_km": 12.8,
+        "efficiency": 0.018
       },
       "trend": "tapering",
-      "trend_slope": -3.21,
-      "date_start": "2025-01-06",
+      "trend_slope": -1.58,
+      "date_start": "2024-12-30",
       "date_end": "2025-02-02",
-      "duration_weeks": 4
+      "duration_weeks": 5
     },
     {
       "type": "Inactive",
       "name": "Inactive",
       "color": "#D1D5DB",
       "week_start": 30,
-      "week_end": 32,
-      "weeks": 3,
-      "date_start": "2025-02-03",
-      "date_end": "2025-02-23",
-      "duration_weeks": 3,
+      "week_end": 31,
+      "weeks": 2,
+      "date_start": "2025-01-31",
+      "date_end": "2025-02-21",
+      "duration_weeks": 2,
       "stats": null,
       "id": 9
     },
     {
       "id": 10,
       "type": "Active",
-      "name": "Base",
-      "color": "#818CF8",
-      "week_start": 33,
+      "name": "Building",
+      "color": "#4ADE80",
+      "week_start": 32,
       "week_end": 35,
       "stats": {
-        "km_per_week": 19.31,
-        "runs_per_week": 1.67,
-        "avg_pace": 5.3,
-        "avg_run_km": 12.16,
-        "efficiency": 0.0182
+        "km_per_week": 16.96,
+        "runs_per_week": 1.5,
+        "avg_pace": 5.44,
+        "avg_run_km": 11.59,
+        "efficiency": 0.0178
       },
-      "trend": "stable",
-      "trend_slope": 0.67,
-      "date_start": "2025-02-24",
+      "trend": "building",
+      "trend_slope": 3.1,
+      "date_start": "2025-02-17",
       "date_end": "2025-03-16",
-      "duration_weeks": 3
+      "duration_weeks": 4
     },
     {
       "type": "Inactive",
@@ -186,8 +186,8 @@
       "week_start": 36,
       "week_end": 36,
       "weeks": 1,
-      "date_start": "2025-03-17",
-      "date_end": "2025-03-23",
+      "date_start": "2025-03-12",
+      "date_end": "2025-03-22",
       "duration_weeks": 1,
       "stats": null,
       "id": 11
@@ -317,11 +317,11 @@
       "name": "Inactive",
       "color": "#D1D5DB",
       "week_start": 72,
-      "week_end": 73,
-      "weeks": 2,
-      "date_start": "2025-11-24",
-      "date_end": "2025-12-07",
-      "duration_weeks": 2,
+      "week_end": 72,
+      "weeks": 1,
+      "date_start": "2025-11-23",
+      "date_end": "2025-12-03",
+      "duration_weeks": 1,
       "stats": null,
       "id": 18
     },
@@ -330,53 +330,73 @@
       "type": "Active",
       "name": "Base",
       "color": "#818CF8",
-      "week_start": 74,
+      "week_start": 73,
       "week_end": 79,
       "stats": {
-        "km_per_week": 24.52,
-        "runs_per_week": 1.83,
-        "avg_pace": 5.22,
-        "avg_run_km": 13.45,
-        "efficiency": 0.0199
+        "km_per_week": 22.42,
+        "runs_per_week": 1.71,
+        "avg_pace": 5.11,
+        "avg_run_km": 12.93,
+        "efficiency": 0.0201
       },
-      "trend": "stable",
-      "trend_slope": 0.06,
-      "date_start": "2025-12-08",
+      "trend": "building",
+      "trend_slope": 1.61,
+      "date_start": "2025-12-01",
       "date_end": "2026-01-18",
-      "duration_weeks": 6
+      "duration_weeks": 7
     },
     {
       "type": "Inactive",
       "name": "Inactive",
       "color": "#D1D5DB",
       "week_start": 80,
-      "week_end": 81,
-      "weeks": 2,
-      "date_start": "2026-01-19",
-      "date_end": "2026-02-01",
-      "duration_weeks": 2,
+      "week_end": 80,
+      "weeks": 1,
+      "date_start": "2026-01-18",
+      "date_end": "2026-01-28",
+      "duration_weeks": 1,
       "stats": null,
       "id": 20
     },
     {
       "id": 21,
       "type": "Active",
-      "name": "Base",
-      "color": "#818CF8",
-      "week_start": 82,
+      "name": "Building",
+      "color": "#4ADE80",
+      "week_start": 81,
+      "week_end": 84,
+      "stats": {
+        "km_per_week": 25.69,
+        "runs_per_week": 2.25,
+        "avg_pace": 5.4,
+        "avg_run_km": 11.5,
+        "efficiency": 0.0195
+      },
+      "trend": "building",
+      "trend_slope": 4.68,
+      "date_start": "2026-01-26",
+      "date_end": "2026-02-22",
+      "duration_weeks": 4
+    },
+    {
+      "id": 22,
+      "type": "Active",
+      "name": "Building",
+      "color": "#4ADE80",
+      "week_start": 85,
       "week_end": 88,
       "stats": {
-        "km_per_week": 25.24,
-        "runs_per_week": 2.43,
-        "avg_pace": 5.16,
-        "avg_run_km": 10.48,
-        "efficiency": 0.0202
+        "km_per_week": 27.5,
+        "runs_per_week": 3.0,
+        "avg_pace": 4.92,
+        "avg_run_km": 9.3,
+        "efficiency": 0.0208
       },
-      "trend": "stable",
-      "trend_slope": 0.33,
-      "date_start": "2026-02-02",
+      "trend": "building",
+      "trend_slope": 3.52,
+      "date_start": "2026-02-23",
       "date_end": "2026-03-22",
-      "duration_weeks": 7
+      "duration_weeks": 4
     }
   ],
   "weekly": [
@@ -570,7 +590,7 @@
       "long_run_ratio": 1.778743153773398,
       "efficiency": 0.017219670876387292,
       "km_4w_slope": 3.0892399999999993,
-      "phase_id": 4
+      "phase_id": 5
     },
     {
       "week": "2024-10-28/2024-11-03",
@@ -618,7 +638,7 @@
       "long_run_ratio": 1.1866712914058681,
       "efficiency": 0.017761107905366415,
       "km_4w_slope": 6.101560000000001,
-      "phase_id": 5
+      "phase_id": 6
     },
     {
       "week": "2024-11-25/2024-12-01",
@@ -690,7 +710,7 @@
       "long_run_ratio": 1.0232112968245362,
       "efficiency": 0.016615110053539557,
       "km_4w_slope": 3.39659,
-      "phase_id": 7
+      "phase_id": 8
     },
     {
       "week": "2025-01-06/2025-01-12",
@@ -774,7 +794,7 @@
       "long_run_ratio": 1.0,
       "efficiency": 0.016787196206283342,
       "km_4w_slope": -6.962020000000004,
-      "phase_id": 9
+      "phase_id": 10
     },
     {
       "week": "2025-02-24/2025-03-02",
@@ -1266,7 +1286,7 @@
       "long_run_ratio": 1.0,
       "efficiency": 0.0216695753344968,
       "km_4w_slope": -3.1716200000000017,
-      "phase_id": 18
+      "phase_id": 19
     },
     {
       "week": "2025-12-08/2025-12-14",
@@ -1362,7 +1382,7 @@
       "long_run_ratio": 1.260678765593348,
       "efficiency": 0.01951309707241911,
       "km_4w_slope": 0.010069999999994689,
-      "phase_id": 20
+      "phase_id": 21
     },
     {
       "week": "2026-02-02/2026-02-08",
@@ -1410,7 +1430,7 @@
       "long_run_ratio": 1.182794822553779,
       "efficiency": 0.020337114051669818,
       "km_4w_slope": 2.0374900000000005,
-      "phase_id": 21
+      "phase_id": 22
     },
     {
       "week": "2026-03-02/2026-03-08",
@@ -1422,7 +1442,7 @@
       "long_run_ratio": 1.0791482768485987,
       "efficiency": 0.020303453783190258,
       "km_4w_slope": -2.5155100000000075,
-      "phase_id": 21
+      "phase_id": 22
     },
     {
       "week": "2026-03-09/2026-03-15",
@@ -1434,19 +1454,19 @@
       "long_run_ratio": 1.2253294479274455,
       "efficiency": 0.02163490471414243,
       "km_4w_slope": -0.47106000000000414,
-      "phase_id": 21
+      "phase_id": 22
     },
     {
       "week": "2026-03-16/2026-03-22",
-      "km_total": 20.9354,
-      "run_count": 2.0,
-      "avg_pace": 5.068191898285038,
+      "km_total": 32.960300000000004,
+      "run_count": 4.0,
+      "avg_pace": 4.913862096380183,
       "max_run_km": 10.9206,
-      "avg_run_km": 10.4677,
-      "long_run_ratio": 1.0432664291105018,
-      "efficiency": 0.020724181360201512,
-      "km_4w_slope": -0.09100000000000202,
-      "phase_id": 21
+      "avg_run_km": 8.240075000000001,
+      "long_run_ratio": 1.3253034711455902,
+      "efficiency": 0.021083333333333336,
+      "km_4w_slope": 3.51647,
+      "phase_id": 22
     }
   ],
   "breakpoints": [
@@ -1481,57 +1501,57 @@
     {
       "from_id": 3,
       "to_id": 5,
-      "week_index": 16,
-      "date": "2024-10-28",
+      "week_index": 15,
+      "date": "2024-10-21",
       "narrative": "pattern_shift",
       "changes": {
-        "km_per_week": 8.3,
-        "runs_per_week": -6.2,
-        "avg_pace": -1.7,
-        "avg_run_km": 9.5,
-        "efficiency": -1.7
+        "km_per_week": 23.9,
+        "runs_per_week": 14.6,
+        "avg_pace": -2.2,
+        "avg_run_km": -2.7,
+        "efficiency": -2.2
       }
     },
     {
       "from_id": 5,
       "to_id": 6,
-      "week_index": 20,
-      "date": "2024-11-25",
+      "week_index": 19,
+      "date": "2024-11-18",
       "narrative": "pattern_shift",
       "changes": {
-        "km_per_week": 21.3,
-        "runs_per_week": -22.2,
-        "avg_pace": -1.3,
-        "avg_run_km": 55.4,
-        "efficiency": -1.1
+        "km_per_week": 8.0,
+        "runs_per_week": -34.5,
+        "avg_pace": -0.4,
+        "avg_run_km": 75.1,
+        "efficiency": -0.6
       }
     },
     {
       "from_id": 6,
       "to_id": 8,
-      "week_index": 26,
-      "date": "2025-01-06",
+      "week_index": 25,
+      "date": "2024-12-30",
       "narrative": "pattern_shift",
       "changes": {
-        "km_per_week": -7.5,
+        "km_per_week": -9.4,
         "runs_per_week": 0.0,
-        "avg_pace": 3.4,
-        "avg_run_km": 6.0,
-        "efficiency": 4.0
+        "avg_pace": 0.9,
+        "avg_run_km": 1.5,
+        "efficiency": 2.3
       }
     },
     {
       "from_id": 8,
       "to_id": 10,
-      "week_index": 33,
-      "date": "2025-02-24",
+      "week_index": 32,
+      "date": "2025-02-17",
       "narrative": "pattern_shift",
       "changes": {
-        "km_per_week": -9.5,
-        "runs_per_week": -4.6,
-        "avg_pace": 1.1,
-        "avg_run_km": -8.9,
-        "efficiency": -0.5
+        "km_per_week": -20.4,
+        "runs_per_week": -16.7,
+        "avg_pace": 0.7,
+        "avg_run_km": -9.5,
+        "efficiency": -1.1
       }
     },
     {
@@ -1539,13 +1559,13 @@
       "to_id": 12,
       "week_index": 37,
       "date": "2025-03-24",
-      "narrative": "pattern_shift",
+      "narrative": "volume_surge",
       "changes": {
-        "km_per_week": 20.7,
-        "runs_per_week": 19.8,
-        "avg_pace": 0.6,
-        "avg_run_km": -5.8,
-        "efficiency": 2.2
+        "km_per_week": 37.4,
+        "runs_per_week": 33.3,
+        "avg_pace": 3.1,
+        "avg_run_km": -1.1,
+        "efficiency": 4.5
       }
     },
     {
@@ -1621,29 +1641,43 @@
     {
       "from_id": 17,
       "to_id": 19,
-      "week_index": 74,
-      "date": "2025-12-08",
+      "week_index": 73,
+      "date": "2025-12-01",
       "narrative": "pattern_shift",
       "changes": {
-        "km_per_week": -5.8,
-        "runs_per_week": -26.8,
-        "avg_pace": 4.9,
-        "avg_run_km": 27.9,
-        "efficiency": 2.1
+        "km_per_week": -13.9,
+        "runs_per_week": -31.6,
+        "avg_pace": 6.9,
+        "avg_run_km": 22.9,
+        "efficiency": 3.1
       }
     },
     {
       "from_id": 19,
       "to_id": 21,
-      "week_index": 82,
-      "date": "2026-02-02",
+      "week_index": 81,
+      "date": "2026-01-26",
+      "narrative": "fitness_gain",
+      "changes": {
+        "km_per_week": 14.6,
+        "runs_per_week": 31.6,
+        "avg_pace": -5.7,
+        "avg_run_km": -11.1,
+        "efficiency": -3.0
+      }
+    },
+    {
+      "from_id": 21,
+      "to_id": 22,
+      "week_index": 85,
+      "date": "2026-02-23",
       "narrative": "pattern_shift",
       "changes": {
-        "km_per_week": 2.9,
-        "runs_per_week": 32.8,
-        "avg_pace": 1.1,
-        "avg_run_km": -22.1,
-        "efficiency": 1.5
+        "km_per_week": 7.0,
+        "runs_per_week": 33.3,
+        "avg_pace": 8.9,
+        "avg_run_km": -19.1,
+        "efficiency": 6.7
       }
     }
   ],
@@ -1652,7 +1686,7 @@
     "date_start": "2024-07-08/2024-07-14",
     "date_end": "2026-03-16/2026-03-22",
     "has_hr": true,
-    "total_runs": 187,
+    "total_runs": 189,
     "config": {
       "inactive_gap_days": 10,
       "min_phase_weeks": 4,

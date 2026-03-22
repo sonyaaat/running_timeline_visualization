@@ -27,7 +27,9 @@ def split_into_segments(weekly: pd.DataFrame, activities: list[dict]) -> tuple[l
             "name": "Inactive",
             "week_start": inactive_start,
             "week_end":   inactive_end,
-            "days":       gap["days"]
+            "days":       gap["days"],
+            "actual_date_start": gap.get("actual_date_start"),
+            "actual_date_end":   gap.get("actual_date_end"),
         })
         log(f"[segments] Inactive: weeks {inactive_start}-{inactive_end} ({gap['days']} days), active resumes w{active_resume}")
     cut_points.append(n_weeks)

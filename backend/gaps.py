@@ -25,23 +25,37 @@ def find_inactive_gaps(activities: list[dict]) -> list[dict]:
         log(f"[gaps] Longest gap: {longest['days']} days ({longest['date_start']} → {longest['date_end']})")
     return gaps
 
+def _week_bounds(w: str) -> tuple[str, str]:
+    """Return (week_start_date, week_end_date) from a week string like '2024-10-21/2024-10-27'."""
+    parts = w.split("/") if "/" in w else [w, w]
+    return parts[0], parts[1] if len(parts) > 1 else parts[0]
+
+
 def gaps_to_week_indices(gaps: list[dict], weekly: pd.DataFrame) -> list[dict]:
     week_starts = weekly["week"].astype(str).tolist()
-    week_indices = {w: i for i, w in enumerate(week_starts)}
     result = []
     for idx, gap in enumerate(gaps, 1):
-        # Find last week index before gap start
+        # Find the week that CONTAINS the last run before the gap
         week_start = None
         for i, w in enumerate(week_starts):
-            if w >= gap["date_start"]:
+            ws, we = _week_bounds(w)
+            if ws <= gap["date_start"] <= we:
+                week_start = i   # last-run week
+                break
+            if ws > gap["date_start"]:
                 week_start = i - 1 if i > 0 else 0
                 break
         if week_start is None:
             week_start = len(week_starts) - 1
-        # Find first week index on or after gap end
+
+        # Find the week that CONTAINS the first run after the gap
         week_end = None
         for i, w in enumerate(week_starts):
-            if w >= gap["date_end"]:
+            ws, we = _week_bounds(w)
+            if ws <= gap["date_end"] <= we:
+                week_end = i   # first-run-back week (will become active_resume)
+                break
+            if ws > gap["date_end"]:
                 week_end = i
                 break
         if week_end is None:
@@ -50,7 +64,9 @@ def gaps_to_week_indices(gaps: list[dict], weekly: pd.DataFrame) -> list[dict]:
             "week_start": week_start,
             "week_end": week_end,
             "days": gap["days"],
-            "type": "Inactive"
+            "type": "Inactive",
+            "actual_date_start": gap["date_start"],  # last run date before gap
+            "actual_date_end":   gap["date_end"],    # first run date after gap
         })
         log(f"[gaps] Gap {idx}: weeks {week_start}→{week_end} ({week_end - week_start} weeks)")
     return result

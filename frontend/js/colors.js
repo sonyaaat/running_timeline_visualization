@@ -7,7 +7,7 @@ const PHASE_COLORS = {
 };
 
 export function phaseColor(phaseName) {
-  return PHASE_COLORS[phaseName]?.bg ?? "#D1D5DB";
+  return PHASE_COLORS[phaseName]?.bg ?? "#B0B7C3";
 }
 
 export function phaseTextColor(phaseName) {
@@ -23,5 +23,5 @@ export const PHASE_SCALE = [
   { name: "Sharpening", label: "Sharpening", ...PHASE_COLORS["Sharpening"] },
 ];
 
-export function inactiveColor()     { return "#D1D5DB"; }
+export function inactiveColor()     { return "#B0B7C3"; }
 export function inactiveTextColor() { return "#6B7280"; }

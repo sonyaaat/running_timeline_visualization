@@ -76,6 +76,10 @@ body {
   box-sizing: border-box;
 }
 
+#section-overview .section-label {
+  padding-left: 60px;
+}
+
 /* Detail section gets top breathing room so Phase Timeline centers naturally */
 #section-detail {
   padding-top: 80px;
@@ -83,11 +87,64 @@ body {
 }
 
 .section-label {
-  font-size: 11px;
-  letter-spacing: 0.07em;
+  font-size: 17px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #999;
+  font-weight: 800;
+  color: #374151;
   margin: 28px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #E5E7EB;
+  color: #6B7280;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: default;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.info-hint:hover {
+  background: #D1D5DB;
+  color: #374151;
+}
+
+.info-hint::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1F2937;
+  color: #F9FAFB;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: normal;
+  width: 260px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+.info-hint:hover::after {
+  opacity: 1;
 }
 
 section {
@@ -96,17 +153,19 @@ section {
 
 #btn-reset {
   background: none;
-  border: 1px solid #D1D5DB;
+  border: 2px solid #9CA3AF;
   border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 13px;
-  color: #555;
+  padding: 7px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 #btn-reset:hover {
   background: #F3F4F6;
+  border-color: #6B7280;
 }
 
 #zoom-header {
@@ -117,8 +176,12 @@ section {
 }
 
 #zoom-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+  flex: 1;
+  text-align: center;
+  letter-spacing: -0.01em;
 }
 
 #btn-sync {

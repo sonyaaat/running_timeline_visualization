@@ -1,7 +1,7 @@
 import APP_STATE from "../js/state.js";
 import { phaseColor, phaseTextColor } from "../js/colors.js";
-import { formatWeekLabel, formatPace, formatKm, showTooltip, hideTooltip } from "../js/utils.js";
-import { renderHeatmap } from "./heatmap.js";
+import { formatWeekLabel, formatPace, showTooltip, hideTooltip } from "../js/utils.js";
+
 import { renderWeekDetail } from "./weekDetail.js";
 
 const STRIP_H      = 72;
@@ -33,7 +33,7 @@ function _onWeekSelected() {
 // Public: renderDetail
 // ─────────────────────────────────────────────────────────
 export function renderDetail(weekStart, weekEnd) {
-  const { phases, weekly, breakpoints, meta } = APP_STATE;
+  const { phases, weekly, breakpoints } = APP_STATE;
   const nWeeks = weekEnd - weekStart + 1;
   _weekDeselectedWeekStart = weekStart;
   _weekDeselectedWeekEnd   = weekEnd;
@@ -63,7 +63,20 @@ export function renderDetail(weekStart, weekEnd) {
   console.log("[zoom] Breakpoints in range:", bpInRange.length);
 
   // ── Step 2: Render timeline ──
+  if (!APP_STATE.ztLineMetric) APP_STATE.ztLineMetric = "pace";
   renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
+
+  // ── Toggle buttons ──
+  document.querySelectorAll(".zt-toggle-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.metric === APP_STATE.ztLineMetric);
+    btn.onclick = () => {
+      APP_STATE.ztLineMetric = btn.dataset.metric;
+      document.querySelectorAll(".zt-toggle-btn").forEach(b =>
+        b.classList.toggle("active", b === btn)
+      );
+      renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
+    };
+  });
 
   // Scroll so the Phase Timeline is centered on screen
   setTimeout(() => {
@@ -175,12 +188,23 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .attr("x", px1).attr("y", 0)
       .attr("width", bw).attr("height", STRIP_H)
       .attr("fill", isInactive ? "url(#zt-inactive-stripe)" : phaseColor(phase.name))
-      .attr("opacity", opacity)
+      .attr("opacity", opacity * (isInactive ? 1 : 0.38))
       .style("cursor", isInactive ? "default" : "pointer")
       .on("mouseover", (event) => {
         const weeks = phase.week_end - phase.week_start + 1;
         if (isInactive) {
-          showTooltip(tooltip, event, `<b style="color:#6B7280">Rest period</b> · ${weeks} weeks`);
+          // Check if any runs happened during this rest period
+          const restRuns = allActivities.filter(a => {
+            if (a.type !== "Run") return false;
+            const ds = a.start_date.slice(0, 10);
+            return ds >= phase.date_start && ds <= phase.date_end;
+          });
+          let html = `<b style="color:#6B7280">Rest period</b> · ${weeks} weeks`;
+          if (restRuns.length > 0) {
+            const totalKm = restRuns.reduce((s, a) => s + a.distance / 1000, 0);
+            html += `<br><span style="color:#9CA3AF;font-size:12px">${restRuns.length} run${restRuns.length > 1 ? "s" : ""} · ${totalKm.toFixed(1)} km during rest</span>`;
+          }
+          showTooltip(tooltip, event, html);
         } else {
           const s = phase.stats || {};
           showTooltip(tooltip, event,
@@ -220,9 +244,9 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       const nameLabel   = bw >= 100 ? phase.name : phase.name.split(" / ")[0];
 
       segG.append("text")
-        .attr("x", cx).attr("y", hasSubtitle ? STRIP_H / 2 - 11 : STRIP_H / 2)
+        .attr("x", cx).attr("y", hasSubtitle ? STRIP_H / 2 - 13 : STRIP_H / 2)
         .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-        .style("font-size", bw >= 120 ? "14px" : "12px").style("font-weight", "700")
+        .style("font-size", bw >= 120 ? "18px" : "15px").style("font-weight", "700")
         .style("pointer-events", "none")
         .attr("clip-path", `url(#${clipId})`)
         .attr("fill", tc).attr("opacity", opacity)
@@ -231,11 +255,11 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       if (hasSubtitle) {
         const s = phase.stats;
         segG.append("text")
-          .attr("x", cx).attr("y", STRIP_H / 2 + 10)
+          .attr("x", cx).attr("y", STRIP_H / 2 + 13)
           .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-          .style("font-size", "11px").style("pointer-events", "none")
+          .style("font-size", "13px").style("pointer-events", "none")
           .attr("clip-path", `url(#${clipId})`)
-          .attr("fill", tc).attr("opacity", opacity * 0.75)
+          .attr("fill", tc).attr("opacity", opacity * 0.8)
           .text(`${phase.duration_weeks}w · ${s.km_per_week?.toFixed(0) ?? "?"} km/wk`);
       }
     } else if (isInactive && bw >= 18) {
@@ -274,14 +298,11 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
     .domain([0, maxKm * 1.1])
     .range([CHART_H, 0]);
 
-  // Pace scale: low value (fast) → top, high value (slow) → bottom
+  // Pace range (used when metric === "pace")
   const paceWeeks = visWeekly.filter(w => (w.avg_pace ?? 0) > 0);
   const paceMin   = d3.min(paceWeeks, w => w.avg_pace) || 5;
   const paceMax   = d3.max(paceWeeks, w => w.avg_pace) || 7;
   const pacePad   = (paceMax - paceMin) * 0.18 || 0.2;
-  const paceScale = d3.scaleLinear()
-    .domain([paceMin - pacePad, paceMax + pacePad])
-    .range([0, CHART_H]);  // fast = top (y=0), slow = bottom (y=CHART_H)
 
   // ── Month boundary vertical guidelines through chart ──
   monthBoundaries.forEach(mb => {
@@ -308,55 +329,156 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
   // ── Left Y-axis (km/wk) ──
   [0, Math.round(maxKm / 2), Math.round(maxKm)].forEach(v => {
+    chartG.append("line")
+      .attr("x1", -4).attr("x2", 0)
+      .attr("y1", kmScale(v)).attr("y2", kmScale(v))
+      .attr("stroke", "rgba(0,0,0,0.25)").attr("stroke-width", 1);
     chartG.append("text")
-      .attr("x", -8).attr("y", kmScale(v))
+      .attr("x", -10).attr("y", kmScale(v))
       .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-      .style("font-size", "9px").style("fill", "#9CA3AF")
-      .text(v === 0 ? "0" : `${v}`);
+      .style("font-size", "13px").style("fill", "#4B5563").style("font-weight", "600")
+      .text(`${v}`);
   });
   chartG.append("text")
-    .attr("x", -8).attr("y", -8)
-    .attr("text-anchor", "end")
-    .style("font-size", "9px").style("fill", "#9CA3AF")
-    .text("km/wk");
+    .attr("transform", `translate(-28,${CHART_H / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .style("font-size", "12px").style("fill", "rgba(99,102,241,0.9)").style("font-weight", "700")
+    .text("km / wk");
 
 
   const sel = APP_STATE.selectedPhaseId;
 
-  // ── Bars + run-count dots ──
-  const barG = chartG.append("g").attr("class", "zt-bars");
+  // ── 3-zone HR classification (Easy / Moderate / Hard) ──
+  // Thresholds based on % of estimated max HR (max avg HR in data × 1.07 as proxy)
+  const allActivities = APP_STATE.activities || [];
+  const maxObservedHR = d3.max(allActivities.filter(a => a.average_heartrate), a => a.average_heartrate) || 180;
+  const estMaxHR = maxObservedHR * 1.07; // typical avg HR is ~93% of true max
+  const HR_MOD  = estMaxHR * 0.75; // below → Easy
+  const HR_HARD = estMaxHR * 0.88; // above → Hard, between → Moderate
+
+  // zone: 0=easy, 1=moderate, 2=hard
+  function _zone(hr) {
+    if (!hr) return 0;
+    if (hr < HR_MOD)  return 0; // easy
+    if (hr < HR_HARD) return 1; // moderate
+    return 2;                    // hard
+  }
+  const ZONE_COLOR = ["#93C5E8", "#f8e19a", "#f7aaaa"]; // muted blue, muted amber, muted red
+  const ZONE_NAME  = ["easy",    "moderate", "hard"];
+  function _zoneColor(hr) { return ZONE_COLOR[_zone(hr)]; }
+  function _zoneName(hr)  { return ZONE_NAME[_zone(hr)]; }
+
+  // ── Per-run stacked segments (from raw activities) ──
+  const runG = chartG.append("g").attr("class", "zt-runs");
+
+  const selWeekLocal = APP_STATE.selectedWeekIdx != null ? APP_STATE.selectedWeekIdx - weekStart : null;
 
   visWeekly.forEach((w, i) => {
-    const km      = w.km_total ?? 0;
-    const isEmpty = km === 0;
-    const bx      = i * barStep;
-    const by      = kmScale(km);
-    const bh      = Math.max(isEmpty ? 2 : 3, CHART_H - by);
-    const ph      = phases.find(p => p.id === w.phase_id);
+    const ph = phases.find(p => p.id === w.phase_id);
+    const opacity = selWeekLocal != null
+      ? (i === selWeekLocal ? 1.0 : 0.2)
+      : sel != null ? ((ph && ph.id === sel) ? 1.0 : 0.18) : 1;
+    const bx = i * barStep;
 
-    let barOpacity = 1;
-    if (sel != null) barOpacity = (ph && ph.id === sel) ? 1.0 : 0.18;
+    // Parse week bounds from weekly entry
+    const parts        = w.week?.includes("/") ? w.week.split("/") : [w.week, w.week];
+    const wStartStr    = parts[0];
+    const wEndStr      = parts[1];
+    if (!wStartStr) return;
 
-    barG.append("path")
-      .attr("d", topRoundedRect(bx, by, barW, bh, isEmpty ? 0 : 2))
-      .attr("fill", isEmpty ? "#E5E7EB" : (ph ? phaseColor(ph.name) : "#E5E7EB"))
-      .attr("opacity", barOpacity)
-      .style("cursor", ph && ph.type === "Active" ? "pointer" : "default")
-      .on("mouseover", (event) => {
-        if (!ph) return;
-        if (ph.type === "Inactive") {
-          showTooltip(tooltip, event, `<b style="color:#6B7280">Rest period</b>`);
-          return;
-        }
-        showTooltip(tooltip, event, `
-          <div style="font-weight:600;color:${phaseTextColor(ph.name)};margin-bottom:5px">${ph.name}</div>
-          <div style="display:flex;flex-direction:column;gap:3px;font-size:12px">
-            <span><span style="color:#9CA3AF;width:38px;display:inline-block">km</span>${formatKm(km)}</span>
-            <span><span style="color:#9CA3AF;width:38px;display:inline-block">pace</span>${formatPace(w.avg_pace)}</span>
-            <span><span style="color:#9CA3AF;width:38px;display:inline-block">runs</span>${w.run_count != null ? Math.round(w.run_count) : "—"}</span>
-          </div>
-        `);
+    // Collect runs for this week — sort easy→hard so hard sits on top visually
+    const weekRuns = allActivities
+      .filter(a => {
+        if (a.type !== "Run") return false;
+        const ds = a.start_date.slice(0, 10);
+        return ds >= wStartStr && ds <= wEndStr;
       })
+      .sort((a, b) => _zone(a.average_heartrate) - _zone(b.average_heartrate));
+
+    // If this week belongs to an Inactive phase — show rest stub regardless of actual runs.
+    // Week boundaries are coarser than day boundaries, so partial weeks at gap edges
+    // may contain real runs but are classified as rest — suppress bars to stay consistent.
+    const isInactiveWeek = ph && ph.type === "Inactive";
+
+    if (weekRuns.length === 0 || isInactiveWeek) {
+      runG.append("rect")
+        .attr("x", bx).attr("y", CHART_H - 2)
+        .attr("width", barW).attr("height", 2)
+        .attr("fill", "#E5E7EB").attr("rx", 1)
+        .style("pointer-events", "none");
+      return;
+    }
+
+    // Stack runs from bottom upward; height of each segment ∝ its km on the Y scale
+    let yBottom = CHART_H;
+    weekRuns.forEach((run, ri) => {
+      const km    = run.distance / 1000;
+      const segH  = Math.max(4, CHART_H - kmScale(km)); // pixels for this run's km
+      const yTop  = yBottom - segH;
+      const color = _zoneColor(run.average_heartrate);
+      const isTop = ri === weekRuns.length - 1;
+
+      const segPath = isTop
+        ? topRoundedRect(bx, yTop, barW, segH, 2)
+        : `M${bx},${yTop} h${barW} v${segH} h${-barW} Z`;
+
+      runG.append("path")
+        .attr("d", segPath)
+        .attr("fill", color)
+        .attr("opacity", opacity)
+        .style("pointer-events", "none");
+
+      // gray separator line between run segments
+      if (ri < weekRuns.length - 1) {
+        runG.append("rect")
+          .attr("x", bx).attr("y", yTop - 1)
+          .attr("width", barW).attr("height", 1.5)
+          .attr("fill", "#D1D5DB")
+          .style("pointer-events", "none");
+      }
+
+      yBottom = yTop;
+    });
+
+    // ── Weekly summary tooltip + click overlay ──
+    const totalKm  = weekRuns.reduce((s, r) => s + r.distance / 1000, 0);
+    const zoneCounts = { Easy: 0, Moderate: 0, Hard: 0 };
+    weekRuns.forEach(r => { zoneCounts[_zoneName(r.average_heartrate)]++; });
+    const runsWithPace = weekRuns.filter(r => r.average_speed > 0);
+    const avgPaceStr = runsWithPace.length
+      ? formatPace(runsWithPace.reduce((s, r) => s + 1000 / r.average_speed / 60, 0) / runsWithPace.length)
+      : null;
+    const runsWithHR = weekRuns.filter(r => r.average_heartrate);
+    const avgHR = runsWithHR.length
+      ? Math.round(runsWithHR.reduce((s, r) => s + r.average_heartrate, 0) / runsWithHR.length)
+      : null;
+
+    const zoneBar = ["Easy","Moderate","Hard"].map(z => {
+      if (!zoneCounts[z]) return "";
+      const col = z === "Easy" ? "#93C5E8" : z === "Moderate" ? "#D4B870" : "#C97878";
+      return `<span style="color:${col};font-weight:600">${z} ${zoneCounts[z]}</span>`;
+    }).filter(Boolean).join(" · ");
+
+    const fmtDate = s => s ? s.slice(5).replace("-", "/") : "";
+    const weekLabel = wStartStr && wEndStr
+      ? `${fmtDate(wStartStr)} → ${fmtDate(wEndStr)}`
+      : fmtDate(wStartStr);
+    const tooltipHTML = `
+      <div style="font-size:12px;color:#9CA3AF;margin-bottom:5px;letter-spacing:0.3px">${weekLabel}</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:8px">${totalKm.toFixed(0)} km · ${weekRuns.length} run${weekRuns.length > 1 ? "s" : ""}</div>
+      <div style="font-size:12px;margin-bottom:7px">${zoneBar}</div>
+      <div style="font-size:13px;display:flex;flex-direction:column;gap:4px">
+        ${avgPaceStr ? `<span><span style="color:#9CA3AF;width:40px;display:inline-block">pace</span>${avgPaceStr}</span>` : ""}
+        ${avgHR ? `<span><span style="color:#9CA3AF;width:40px;display:inline-block">HR</span>♥ ${avgHR} bpm</span>` : ""}
+      </div>
+    `;
+
+    runG.append("rect")
+      .attr("x", bx).attr("y", 0)
+      .attr("width", barW).attr("height", CHART_H)
+      .attr("fill", "transparent")
+      .style("cursor", ph && ph.type === "Active" ? "pointer" : "default")
+      .on("mouseover", (event) => showTooltip(tooltip, event, tooltipHTML))
       .on("mousemove", (event) => {
         tooltip.style("left", (event.pageX + 12) + "px")
                .style("top",  (event.pageY - 28) + "px");
@@ -364,7 +486,6 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .on("mouseout", () => hideTooltip(tooltip))
       .on("click", () => {
         if (APP_STATE.selectedWeekIdx === weekStart + i) {
-          // Deselect
           APP_STATE.selectedWeekIdx = null;
           document.getElementById("week-detail-section").style.display = "none";
           renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
@@ -374,97 +495,160 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
           renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
         }
       });
-
   });
 
   // ── Selected week highlight ──
-  if (APP_STATE.selectedWeekIdx != null) {
-    const si = APP_STATE.selectedWeekIdx - weekStart;
-    if (si >= 0 && si < nWeeks) {
-      const bx = si * barStep;
-      barG.append("rect")
-        .attr("x", bx - 1).attr("y", 0)
-        .attr("width", barW + 2).attr("height", CHART_H)
-        .attr("fill", "none")
-        .attr("stroke", "white")
-        .attr("stroke-width", 2.5)
-        .attr("rx", 3)
-        .style("pointer-events", "none");
-      barG.append("rect")
-        .attr("x", bx - 1).attr("y", 0)
-        .attr("width", barW + 2).attr("height", CHART_H)
-        .attr("fill", "none")
-        .attr("stroke", "rgba(0,0,0,0.25)")
-        .attr("stroke-width", 1)
-        .attr("rx", 3)
-        .style("pointer-events", "none");
+  if (selWeekLocal != null && selWeekLocal >= 0 && selWeekLocal < nWeeks) {
+    const bx = selWeekLocal * barStep;
+    runG.append("rect")
+      .attr("x", bx - 1).attr("y", 0)
+      .attr("width", barW + 2).attr("height", CHART_H)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(0,0,0,0.35)")
+      .attr("stroke-width", 1.5)
+      .attr("rx", 3)
+      .style("pointer-events", "none");
+  }
+
+  // ── Overlay line: Pace / Avg HR / Efficiency ──
+  const metric    = APP_STATE.ztLineMetric ?? "pace";
+  const axisX     = innerW + 8;
+
+  // Helper: split array into contiguous segments (gap ≤ 2 weeks allowed)
+  function toSegments(data) {
+    const segs = []; let cur = [];
+    data.forEach(d => {
+      if (!cur.length) { cur.push(d); return; }
+      if (d.i - cur[cur.length - 1].i <= 2) cur.push(d);
+      else { segs.push(cur); cur = [d]; }
+    });
+    if (cur.length) segs.push(cur);
+    return segs;
+  }
+
+  // Helper: draw line + dots + right axis
+  function drawOverlayLine(points, yScale, color, axisLabel, axisDirection, fmtTick) {
+    if (points.length < 2) return;
+    const lineGen = d3.line()
+      .x(d => d.i * barStep + barW / 2)
+      .y(d => yScale(d.v))
+      .curve(d3.curveMonotoneX);
+
+    const segs = toSegments(points);
+    segs.forEach(seg => {
+      if (seg.length < 2) return;
+      chartG.append("path").datum(seg)
+        .attr("fill", "none").attr("stroke", color)
+        .attr("stroke-width", 1.5).attr("opacity", 0.75)
+        .attr("d", lineGen).style("pointer-events", "none");
+    });
+
+    // Dashed bridges across gaps (rest periods)
+    const bridgeLine = d3.line()
+      .x(d => d.i * barStep + barW / 2)
+      .y(d => yScale(d.v));
+    for (let s = 0; s < segs.length - 1; s++) {
+      const tail = segs[s][segs[s].length - 1];
+      const head = segs[s + 1][0];
+      chartG.append("path").datum([tail, head])
+        .attr("fill", "none").attr("stroke", color)
+        .attr("stroke-width", 1.2).attr("opacity", 0.35)
+        .attr("stroke-dasharray", "4 4")
+        .attr("d", bridgeLine).style("pointer-events", "none");
+    }
+
+    points.forEach(d => {
+      chartG.append("circle")
+        .attr("cx", d.i * barStep + barW / 2).attr("cy", yScale(d.v))
+        .attr("r", 2.5).attr("fill", color).attr("stroke", "white").attr("stroke-width", 1)
+        .attr("opacity", 0.85).style("pointer-events", "none");
+    });
+
+    // Right Y-axis ticks
+    const vMin = d3.min(points, d => d.v);
+    const vMax = d3.max(points, d => d.v);
+    const mid  = (vMin + vMax) / 2;
+    [vMin, mid, vMax].forEach(v => {
+      chartG.append("line")
+        .attr("x1", axisX - 4).attr("x2", axisX)
+        .attr("y1", yScale(v)).attr("y2", yScale(v))
+        .attr("stroke", color).attr("stroke-width", 1).attr("opacity", 0.4);
+      chartG.append("text")
+        .attr("x", axisX + 2).attr("y", yScale(v))
+        .attr("dominant-baseline", "middle")
+        .style("font-size", "13px").style("fill", color).style("font-weight", "600").style("opacity", "0.9")
+        .text(fmtTick(v));
+    });
+    chartG.append("text")
+      .attr("x", axisX + 2).attr("y", -8)
+      .style("font-size", "12px").style("fill", color).style("font-weight", "700").style("opacity", "0.9")
+      .text(axisLabel);
+    chartG.append("text")
+      .attr("x", axisX + 2).attr("y", 10)
+      .style("font-size", "11px").style("fill", color).style("opacity", "0.55")
+      .text(axisDirection);
+  }
+
+  if (metric === "pace" && paceWeeks.length >= 2) {
+    const points = visWeekly.map((w, i) => ({ i, v: w.avg_pace })).filter(d => d.v > 0);
+    // pace: low value = fast = top of chart
+    const pScale = d3.scaleLinear()
+      .domain([paceMin - pacePad, paceMax + pacePad])
+      .range([0, CHART_H]);
+    drawOverlayLine(points, pScale, "#D97741", "pace", "faster ↑",
+      v => formatPace(v).replace(" /km", ""));
+  }
+
+  if (metric === "hr") {
+    // Per-week weighted-average HR from raw activities
+    const hrPoints = visWeekly.map((w, i) => {
+      const parts = w.week?.includes("/") ? w.week.split("/") : [w.week, w.week];
+      const ws = parts[0], we = parts[1];
+      if (!ws) return null;
+      const runs = allActivities.filter(a => {
+        if (a.type !== "Run" || !a.average_heartrate) return false;
+        const ds = a.start_date.slice(0, 10);
+        return ds >= ws && ds <= we;
+      });
+      if (!runs.length) return null;
+      const totalDist = runs.reduce((s, a) => s + a.distance, 0);
+      const wHR = runs.reduce((s, a) => s + a.average_heartrate * a.distance, 0) / totalDist;
+      return { i, v: wHR };
+    }).filter(Boolean);
+
+    if (hrPoints.length >= 2) {
+      const hrMin  = d3.min(hrPoints, d => d.v);
+      const hrMax  = d3.max(hrPoints, d => d.v);
+      const hrPad  = (hrMax - hrMin) * 0.18 || 3;
+      // Higher HR = harder effort → top of chart (inverted: domain high→low maps to y=0→CHART_H)
+      const hrScale = d3.scaleLinear()
+        .domain([hrMax + hrPad, hrMin - hrPad])
+        .range([0, CHART_H]);
+      drawOverlayLine(hrPoints, hrScale, "#6366F1", "avg HR", "lower ↓",
+        v => `${Math.round(v)}`);
     }
   }
 
-  // ── Pace line (right axis) ──
-  if (paceWeeks.length >= 2) {
-    // Split into contiguous segments (skip zero/null weeks)
-    const paceData = visWeekly
-      .map((w, i) => ({ i, pace: w.avg_pace }))
-      .filter(d => d.pace > 0);
+  if (metric === "efficiency") {
+    // Use pre-computed efficiency from weekly data (avg_speed_ms / avg_heartrate)
+    // Display as % change from personal baseline (mean of all non-null weeks)
+    const rawEff = visWeekly
+      .map((w, i) => w.efficiency != null ? { i, v: w.efficiency } : null)
+      .filter(Boolean);
 
-    const paceSegments = [];
-    let curSeg = [];
-    paceData.forEach(d => {
-      if (!curSeg.length) { curSeg.push(d); return; }
-      const prev = curSeg[curSeg.length - 1];
-      if (d.i - prev.i <= 2) { curSeg.push(d); }
-      else { paceSegments.push(curSeg); curSeg = [d]; }
-    });
-    if (curSeg.length) paceSegments.push(curSeg);
-
-    const paceLine = d3.line()
-      .x(d => d.i * barStep + barW / 2)
-      .y(d => paceScale(d.pace))
-      .curve(d3.curveMonotoneX);
-
-    paceSegments.forEach(seg => {
-      if (seg.length < 2) return;
-      chartG.append("path")
-        .datum(seg)
-        .attr("fill", "none")
-        .attr("stroke", "#D97741")
-        .attr("stroke-width", 1.5)
-        .attr("opacity", 0.75)
-        .attr("d", paceLine)
-        .style("pointer-events", "none");
-    });
-
-    // Pace dots
-    paceData.forEach(d => {
-      chartG.append("circle")
-        .attr("cx", d.i * barStep + barW / 2)
-        .attr("cy", paceScale(d.pace))
-        .attr("r", 2.5)
-        .attr("fill", "#D97741").attr("stroke", "white").attr("stroke-width", 1)
-        .attr("opacity", 0.85)
-        .style("pointer-events", "none");
-    });
-
-    // Right Y-axis (pace) — top = fast, bottom = slow
-    const paceAxisX = innerW + 8;
-    [paceMin, (paceMin + paceMax) / 2, paceMax].forEach(v => {
-      chartG.append("text")
-        .attr("x", paceAxisX).attr("y", paceScale(v))
-        .attr("dominant-baseline", "middle")
-        .style("font-size", "9px").style("fill", "#D97741").style("opacity", "0.75")
-        .text(formatPace(v).replace(" /km", ""));
-    });
-    chartG.append("text")
-      .attr("x", paceAxisX).attr("y", -8)
-      .style("font-size", "9px").style("fill", "#D97741").style("opacity", "0.75")
-      .text("pace");
-
-    // "faster ↑" annotation at top of pace axis
-    chartG.append("text")
-      .attr("x", paceAxisX).attr("y", 8)
-      .style("font-size", "8px").style("fill", "#D97741").style("opacity", "0.5")
-      .text("faster ↑");
+    if (rawEff.length >= 2) {
+      const baseline = d3.mean(rawEff, d => d.v);
+      const effPoints = rawEff.map(d => ({ i: d.i, v: (d.v - baseline) / baseline * 100 }));
+      const effAbs = Math.max(Math.abs(d3.min(effPoints, d => d.v)),
+                              Math.abs(d3.max(effPoints, d => d.v))) || 5;
+      const effPad = effAbs * 0.2;
+      // Higher % = more efficient = top
+      const effScale = d3.scaleLinear()
+        .domain([-(effAbs + effPad), effAbs + effPad])
+        .range([CHART_H, 0]);
+      drawOverlayLine(effPoints, effScale, "#10B981", "efficiency", "better ↑",
+        v => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
+    }
   }
 
   // ── Bottom border ──
@@ -476,15 +660,49 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   // ── Breakpoint markers — sit on the strip at phase boundaries ──
   const R = 13;
 
+  function transitionStyle(fromPhase, toPhase, changes) {
+    const from = fromPhase.type === "Inactive" ? "Rest" : fromPhase.name;
+    const to   = toPhase.type   === "Inactive" ? "Rest" : toPhase.name;
+    const kmChange = changes?.km_per_week ?? 0;
+
+    // Rest → Active
+    if (from === "Rest")
+      return { arrow: "↑", fill: "#DBEAFE", stroke: "#3B82F6", text: "#1D4ED8" };
+
+    // Active → Rest
+    if (to === "Rest")
+      return { arrow: "↓", fill: "#F3F4F6", stroke: "#9CA3AF", text: "#6B7280" };
+
+    // → Building or Peak (volume growing)
+    if (to === "Building" || to === "Peak")
+      return { arrow: "↑", fill: "#DCFCE7", stroke: "#22C55E", text: "#15803D" };
+
+    // Peak → Sharpening or Recovery (expected taper)
+    if ((from === "Peak" || from === "Building") && (to === "Sharpening" || to === "Recovery"))
+      return { arrow: "↓", fill: "#FEF3C7", stroke: "#F59E0B", text: "#B45309" };
+
+    // Unexpected drop (Building → Recovery without going through Peak)
+    if (from === "Building" && to === "Recovery" && (kmChange ?? 0) < -20)
+      return { arrow: "↓", fill: "#FEE2E2", stroke: "#EF4444", text: "#DC2626" };
+
+    // Generic: follow km direction
+    if ((kmChange ?? 0) > 10)
+      return { arrow: "↑", fill: "#DCFCE7", stroke: "#22C55E", text: "#15803D" };
+    if ((kmChange ?? 0) < -10)
+      return { arrow: "↓", fill: "#FEE2E2", stroke: "#EF4444", text: "#DC2626" };
+
+    return { arrow: "→", fill: "white", stroke: "#9CA3AF", text: "#6B7280" };
+  }
+
   bpInRange.forEach(bp => {
     const fromPhase = phases.find(p => p.id === bp.from_id);
     const toPhase   = phases.find(p => p.id === bp.to_id);
     if (!fromPhase || !toPhase) return;
 
+    const style = transitionStyle(fromPhase, toPhase, bp.changes);
     const bpX = x(bp.week_index);
-    const cy  = STRIP_H / 2; // center of the strip
+    const cy  = STRIP_H / 2;
 
-    // Attach to stripG so it sits on the strip
     const markerG = stripG.append("g")
       .attr("transform", `translate(${bpX}, ${cy})`)
       .style("cursor", "pointer");
@@ -495,21 +713,28 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .attr("width", (R + 8) * 2).attr("height", (R + 8) * 2)
       .attr("fill", "transparent");
 
-    // Diamond — white fill with dark border for contrast against any phase color
+    // White halo for contrast against any phase background
+    markerG.append("path")
+      .attr("d", `M0,-${R + 3} L${R + 3},0 L0,${R + 3} L-${R + 3},0 Z`)
+      .attr("fill", "white")
+      .attr("opacity", 0.9)
+      .style("pointer-events", "none");
+
+    // Diamond
     const shape = markerG.append("path")
       .attr("d", `M0,-${R} L${R},0 L0,${R} L-${R},0 Z`)
-      .attr("fill", "white")
+      .attr("fill", style.fill)
       .attr("fill-opacity", 0.95)
-      .attr("stroke", "#374151")
-      .attr("stroke-width", 1.5);
+      .attr("stroke", style.stroke)
+      .attr("stroke-width", 2);
 
     markerG.append("text")
       .attr("x", 0).attr("y", 0)
       .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
       .style("font-size", "11px").style("font-weight", "700")
       .style("pointer-events", "none")
-      .attr("fill", "#374151")
-      .text("→");
+      .attr("fill", style.text)
+      .text(style.arrow);
 
     markerG
       .on("mouseover", (event) => {
@@ -517,7 +742,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         showTransitionPopover(bp, fromPhase, toPhase, event);
       })
       .on("mouseout", () => {
-        shape.attr("fill-opacity", 0.85);
+        shape.attr("fill-opacity", 0.95);
         hideTransitionPopover();
       });
   });
@@ -647,17 +872,7 @@ function handlePhaseClick(phase, weekStart, weekEnd) {
   );
   renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
 
-  if (APP_STATE.selectedPhaseId) {
-    document.getElementById("heatmap-section").style.display = "block";
-    const nameEl = document.getElementById("heatmap-phase-name");
-    nameEl.textContent  = phase.name;
-    nameEl.style.color  = phaseTextColor(phase.name);
-    renderHeatmap(phase.id);
-    document.getElementById("heatmap-section")
-      .scrollIntoView({ behavior: "smooth", block: "start" });
-  } else {
-    document.getElementById("heatmap-section").style.display = "none";
-  }
+  document.getElementById("heatmap-section").style.display = "none";
 }
 
 // ─────────────────────────────────────────────────────────
@@ -682,7 +897,6 @@ function phaseAvgHR(phase) {
 function buildTransitionHTML(bp, fromPhase, toPhase) {
   const fromTC = phaseTextColor(fromPhase.name);
   const toTC   = phaseTextColor(toPhase.name);
-  const fs = fromPhase.stats || {};
   const ts = toPhase.stats   || {};
   const ch = bp.changes      || {};
 
@@ -690,46 +904,38 @@ function buildTransitionHTML(bp, fromPhase, toPhase) {
   const toHR   = phaseAvgHR(toPhase);
   const hrPct  = fromHR && toHR ? ((toHR - fromHR) / fromHR) * 100 : null;
 
-  const metricRows = [
-    { label: "km / week",   from: fs.km_per_week  != null ? `${fs.km_per_week.toFixed(1)} km` : "—",  to: ts.km_per_week  != null ? `${ts.km_per_week.toFixed(1)} km` : "—",  pct: ch.km_per_week,  bigger: true  },
-    { label: "runs / week", from: fs.runs_per_week != null ? `${fs.runs_per_week.toFixed(1)}`  : "—",  to: ts.runs_per_week != null ? `${ts.runs_per_week.toFixed(1)}` : "—",  pct: ch.runs_per_week, bigger: true  },
-    { label: "avg pace",    from: formatPace(fs.avg_pace), to: formatPace(ts.avg_pace), pct: ch.avg_pace, bigger: false },
-    { label: "heart rate",  from: fromHR != null ? `${Math.round(fromHR)} bpm` : "—", to: toHR != null ? `${Math.round(toHR)} bpm` : "—", pct: hrPct, bigger: false, skip: hrPct == null },
-    { label: "avg run km",  from: fs.avg_run_km != null ? `${fs.avg_run_km.toFixed(1)} km` : "—", to: ts.avg_run_km != null ? `${ts.avg_run_km.toFixed(1)} km` : "—", pct: ch.avg_run_km, bigger: true, skip: ch.avg_run_km == null || Math.abs(ch.avg_run_km) < 5 },
-  ];
-
-  const tiles = metricRows
-    .filter(m => !m.skip && m.pct != null)
-    .map(m => {
-      const isFlat   = Math.abs(m.pct) < 2;
-      const isGood   = m.bigger ? m.pct > 0 : m.pct < 0;
-      const pctColor = isFlat ? "#9CA3AF" : isGood ? "#16A34A" : "#DC2626";
-      const sign     = m.pct > 0 ? "+" : "";
-      const pctText  = isFlat ? "≈" : `${sign}${Math.round(m.pct)}%`;
-      return `
-        <div class="bpd-tile">
-          <div class="bpd-tile-label">${m.label}</div>
-          <div class="bpd-tile-change" style="color:${pctColor}">${pctText}</div>
-          <div class="bpd-tile-values">${m.from} → ${m.to}</div>
-        </div>`;
-    }).join("");
-
   const fromWeeks = fromPhase.week_end - fromPhase.week_start + 1;
   const toWeeks   = toPhase.week_end   - toPhase.week_start   + 1;
 
+  const cards = [
+    { label: "km/week",    pct: ch.km_per_week,    bigger: true,  val: ts.km_per_week  != null ? `${ts.km_per_week.toFixed(0)} km`  : null },
+    { label: "pace",       pct: ch.avg_pace,        bigger: false, val: formatPace(ts.avg_pace) },
+    { label: "avg run",    pct: ch.avg_run_km,      bigger: true,  val: ts.avg_run_km   != null ? `${ts.avg_run_km.toFixed(1)} km`   : null, skip: ch.avg_run_km == null },
+    { label: "HR",         pct: hrPct,              bigger: false, val: toHR != null ? `${Math.round(toHR)} bpm` : null, skip: hrPct == null },
+    { label: "runs/wk",   pct: ch.runs_per_week,   bigger: true,  val: ts.runs_per_week != null ? `${ts.runs_per_week.toFixed(1)}`  : null },
+    { label: "efficiency", pct: ch.efficiency,      bigger: true,  val: ts.efficiency   != null ? `${(ts.efficiency * 1000).toFixed(1)}` : null, skip: true },
+  ].filter(c => !c.skip && c.pct != null && Math.abs(c.pct) >= 2);
+
+  const cardHTML = cards.map(c => {
+    const isGood   = c.bigger ? c.pct > 0 : c.pct < 0;
+    const pctColor = isGood ? "#16A34A" : "#DC2626";
+    const sign     = c.pct > 0 ? "+" : "";
+    const pctText  = `${sign}${Math.round(c.pct)}%`;
+    return `
+      <div class="bpd-card">
+        <div class="bpd-card-label">${c.label}</div>
+        <div class="bpd-card-pct" style="color:${pctColor}">${pctText}</div>
+        ${c.val ? `<div class="bpd-card-val">${c.val}</div>` : ""}
+      </div>`;
+  }).join("");
+
   return `
-    <div class="bpd-top">
-      <div class="bpd-phase-block">
-        <div class="bpd-phase-name" style="color:${fromTC}">${fromPhase.name}</div>
-        <div class="bpd-phase-dur">${fromWeeks}w</div>
-      </div>
-      <div class="bpd-transition-arrow">→</div>
-      <div class="bpd-phase-block">
-        <div class="bpd-phase-name" style="color:${toTC}">${toPhase.name}</div>
-        <div class="bpd-phase-dur">${toWeeks}w</div>
-      </div>
+    <div class="bpd-header">
+      <span class="bpd-phase-name" style="color:${fromTC}">${fromPhase.name}</span><span class="bpd-dur"> ${fromWeeks}w</span>
+      <span class="bpd-arrow"> → </span>
+      <span class="bpd-phase-name" style="color:${toTC}">${toPhase.name}</span><span class="bpd-dur"> ${toWeeks}w</span>
     </div>
-    <div class="bpd-tiles">${tiles}</div>`;
+    <div class="bpd-grid">${cardHTML}</div>`;
 }
 
 function showTransitionPopover(bp, fromPhase, toPhase, event) {

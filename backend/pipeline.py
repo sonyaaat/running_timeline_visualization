@@ -4,6 +4,7 @@ import shutil
 import sys
 import pandas as pd
 import numpy as np
+from datetime import datetime, timedelta
 from backend.utils import log, log_section, clean_nan
 from backend.features import build_weekly_features, fill_calendar
 from backend.gaps import find_inactive_gaps, gaps_to_week_indices
@@ -191,21 +192,34 @@ def run_pipeline(force_refresh: bool = False) -> dict:
 
     # 5. ASSEMBLING RESULTS
     log_section("ASSEMBLING RESULTS")
-    inactive_phase_dicts = [
-        {
+    def _inactive_date(inact, weekly):
+        # Use actual activity dates (shifted by 1 day) so date range contains NO runs by definition.
+        # Fallback to week boundary dates if actual dates are missing.
+        if inact.get("actual_date_start"):
+            ds = (datetime.fromisoformat(inact["actual_date_start"]) + timedelta(days=1)).date().isoformat()
+        else:
+            ds = _week_to_date(weekly.iloc[inact["week_start"]]["week"], True)
+        if inact.get("actual_date_end"):
+            de = (datetime.fromisoformat(inact["actual_date_end"]) - timedelta(days=1)).date().isoformat()
+        else:
+            de = _week_to_date(weekly.iloc[inact["week_end"]]["week"], False)
+        return ds, de
+
+    inactive_phase_dicts = []
+    for inact in inactive_phases:
+        ds, de = _inactive_date(inact, weekly)
+        inactive_phase_dicts.append({
             "type": "Inactive",
             "name": "Inactive",
             "color": "#D1D5DB",
             "week_start": inact["week_start"],
             "week_end": inact["week_end"],
             "weeks": inact["week_end"] - inact["week_start"] + 1,
-            "date_start":     _week_to_date(weekly.iloc[inact["week_start"]]["week"], True),
-            "date_end":       _week_to_date(weekly.iloc[inact["week_end"]]["week"],   False),
+            "date_start":     ds,
+            "date_end":       de,
             "duration_weeks": inact["week_end"] - inact["week_start"] + 1,
             "stats": None,
-        }
-        for inact in inactive_phases
-    ]
+        })
     all_phases = active_phases + inactive_phase_dicts
     all_phases.sort(key=lambda p: p["week_start"])
     for i, p in enumerate(all_phases):

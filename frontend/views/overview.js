@@ -73,8 +73,8 @@ export function renderOverview() {
       .style("cursor", "default")
       .on("mouseover", (event) => {
         showTooltip(tooltip, event,
-          `<b style="color:${p.bg}">${p.label}</b><br>
-           <span style="color:#6B7280;font-size:12px;line-height:1.5">${PHASE_DESCRIPTIONS[p.name] ?? ""}</span>`);
+          `<div style="font-weight:700;font-size:14px;color:${p.bg};margin-bottom:6px">${p.label}</div>
+           <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:220px">${PHASE_DESCRIPTIONS[p.name] ?? ""}</div>`);
       })
       .on("mousemove", (event) => {
         tooltip.style("left", (event.pageX + 12) + "px")
@@ -105,8 +105,8 @@ export function renderOverview() {
     .style("cursor", "default")
     .on("mouseover", (event) => {
       showTooltip(tooltip, event,
-        `<b style="color:#6B7280">Rest</b><br>
-         <span style="color:#6B7280;font-size:12px;line-height:1.5">No running activity for 10+ days. Gap between training blocks.</span>`);
+        `<div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:6px">Rest</div>
+         <div style="color:#9CA3AF;font-size:12px;line-height:1.6;max-width:200px">No running activity for 10+ days. Gap between training blocks.</div>`);
     })
     .on("mousemove", (event) => {
       tooltip.style("left", (event.pageX + 12) + "px")
@@ -131,7 +131,7 @@ export function renderOverview() {
   legBarG.append("text")
     .attr("x", innerW).attr("y", cy)
     .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-    .style("font-size", "12px").style("fill", "#9CA3AF")
+    .style("font-size", "14px").style("fill", "#9CA3AF")
     .text("drag any period to explore in detail →");
 
   // ─────────────────────────────────────────────────────────
@@ -170,10 +170,15 @@ export function renderOverview() {
           const tot = s.total_km    != null ? s.total_km.toFixed(0)    : "—";
           const pac = s.avg_pace    != null ? fmtPaceShort(s.avg_pace) : "—";
           const html = isInactive
-            ? `<b style="color:#6B7280">Rest / Inactive</b><br>${weeks} weeks off`
-            : `<b style="color:${tc}">${phase.name}</b><br>
-               ${weeks} weeks &nbsp;·&nbsp; ${km} km/w avg &nbsp;·&nbsp; ${tot} km total<br>
-               avg pace <b>${pac}</b>`;
+            ? `<div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:5px">Rest / Inactive</div>
+               <div style="font-size:12px;color:#9CA3AF">${weeks} weeks off</div>`
+            : `<div style="font-weight:700;font-size:15px;color:${tc};margin-bottom:9px">${phase.name}</div>
+               <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
+                 <div><span style="color:#9CA3AF;display:inline-block;width:46px">weeks</span>${weeks}</div>
+                 <div><span style="color:#9CA3AF;display:inline-block;width:46px">avg</span>${km} km/w</div>
+                 <div><span style="color:#9CA3AF;display:inline-block;width:46px">total</span>${tot} km</div>
+                 <div><span style="color:#9CA3AF;display:inline-block;width:46px">pace</span>${pac}</div>
+               </div>`;
           showTooltip(tooltip, event, html);
         })
         .on("mousemove", (event) => {
@@ -249,22 +254,29 @@ export function renderOverview() {
     chartG.append("line")
       .attr("x1", 0).attr("x2", innerW)
       .attr("y1", yy).attr("y2", yy)
-      .attr("stroke", val === 0 ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.06)")
-      .attr("stroke-width", val === 0 ? 1 : 0.5)
+      .attr("stroke", val === 0 ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.08)")
+      .attr("stroke-width", val === 0 ? 1.5 : 0.75)
       .attr("stroke-dasharray", val === 0 ? "none" : "3,4");
+    // Tick mark
+    if (val !== 0) {
+      chartG.append("line")
+        .attr("x1", -4).attr("x2", 0)
+        .attr("y1", yy).attr("y2", yy)
+        .attr("stroke", "rgba(0,0,0,0.25)").attr("stroke-width", 1);
+    }
     // Axis label (left)
     chartG.append("text")
-      .attr("x", -8).attr("y", yy)
+      .attr("x", -10).attr("y", yy)
       .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-      .style("font-size", "10px").style("fill", "#9CA3AF")
+      .style("font-size", "13px").style("fill", "#4B5563").style("font-weight", "600")
       .text(val === 0 ? "" : val);
   });
 
   // Left axis title
   chartG.append("text")
-    .attr("transform", `translate(-42,${CHART_H / 2}) rotate(-90)`)
+    .attr("transform", `translate(-46,${CHART_H / 2}) rotate(-90)`)
     .attr("text-anchor", "middle")
-    .style("font-size", "10px").style("fill", "rgba(99,102,241,0.7)")
+    .style("font-size", "12px").style("fill", "rgba(99,102,241,0.9)").style("font-weight", "700")
     .text("km / week");
 
   // ── Km area + line ──
@@ -378,9 +390,13 @@ export function renderOverview() {
     const km  = w.km_total  != null ? w.km_total.toFixed(1)  : "—";
     const pac = w.avg_pace  != null ? fmtPaceShort(w.avg_pace) : "—";
     const runs = w.run_count ?? "—";
-    const html = `<b>${weekLabel}</b><br>
-      ${km} km &nbsp;·&nbsp; ${runs} run${runs !== 1 ? "s" : ""}<br>
-      avg pace <b>${pac}</b>`;
+    const html = `
+      <div style="font-size:12px;color:#9CA3AF;margin-bottom:5px">${weekLabel}</div>
+      <div style="font-weight:700;font-size:17px;margin-bottom:9px">${km} km</div>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:13px">
+        <div><span style="color:#9CA3AF;display:inline-block;width:46px">runs</span>${runs}</div>
+        <div><span style="color:#9CA3AF;display:inline-block;width:46px">pace</span>${pac}</div>
+      </div>`;
     showTooltip(tooltip, event, html);
     tooltip.style("left", (event.pageX + 14) + "px").style("top", (event.pageY - 44) + "px");
   });

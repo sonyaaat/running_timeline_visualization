@@ -92,8 +92,9 @@ export function renderWeekDetail(weekIdx) {
     return { date: d, dateStr: ds, acts };
   });
 
-  const totalKm   = weekActs.reduce((s, a) => s + a.distance / 1000, 0);
+  const totalKm    = weekActs.reduce((s, a) => s + a.distance / 1000, 0);
   const thresholds = buildThresholds(activities);
+  const phaseAvgPace = phase?.stats?.avg_pace ?? null;
 
   // Header label from parsed strings (no timezone dependency)
   const fmtStr = s => {
@@ -101,8 +102,6 @@ export function renderWeekDetail(weekIdx) {
     return new Date(y, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
   const headerLabel = `${fmtStr(weekStartStr)} – ${fmtStr(weekEndStr)}, ${sy}`;
-  const [mY, mMo] = weekStartStr.split("-").map(Number);
-  const monthLabel = new Date(mY, mMo - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   const section = document.getElementById("week-detail-section");
   const content = document.getElementById("week-detail-content");
@@ -114,36 +113,51 @@ export function renderWeekDetail(weekIdx) {
 
   content.innerHTML = `
     <div class="wd-header">
-      <div class="wd-header-left">
+      <div class="wd-header-top">
         <span class="wd-label">${headerLabel}</span>
         <span class="wd-summary">${weekActs.length} run${weekActs.length !== 1 ? "s" : ""} · ${totalKm.toFixed(1)} km</span>
       </div>
-      <span class="wd-month">${monthLabel}</span>
       <div class="wd-nav">
-        <button class="wd-nav-btn" id="wd-prev-btn" ${hasPrev ? "" : "disabled"}>←</button>
-        <button class="wd-nav-btn" id="wd-next-btn" ${hasNext ? "" : "disabled"}>→</button>
-        <button class="wd-close" id="wd-close-btn">×</button>
+        <button class="wd-nav-btn" id="wd-prev-btn" ${hasPrev ? "" : "disabled"} title="Previous week">←</button>
+        <button class="wd-nav-btn" id="wd-next-btn" ${hasNext ? "" : "disabled"} title="Next week">→</button>
+        <button class="wd-close" id="wd-close-btn" title="Close">×</button>
       </div>
     </div>
     <div class="wd-grid">
-      ${days.map((day, di) => renderDayCol(day, di, thresholds)).join("")}
+      ${days.map((day, di) => renderDayCol(day, di, thresholds, phaseAvgPace)).join("")}
     </div>
   `;
 
-  document.getElementById("wd-close-btn").addEventListener("click", () => {
+  function closeWeekDetail() {
+    clearTimeout(scrollCloseTimer);
     section.style.display = "none";
     APP_STATE.selectedWeekIdx = null;
+    window.removeEventListener("wheel", onScrollUp);
     document.dispatchEvent(new CustomEvent("week-deselected"));
-  });
+  }
+
+  let scrollCloseTimer = null;
+  function onScrollUp(e) {
+    if (e.deltaY < 0 && !scrollCloseTimer) {
+      scrollCloseTimer = setTimeout(() => closeWeekDetail(), 5000);
+    }
+  }
+
+  document.getElementById("wd-close-btn").addEventListener("click", closeWeekDetail);
+  window.addEventListener("wheel", onScrollUp, { passive: true });
 
   if (hasPrev) {
     document.getElementById("wd-prev-btn").addEventListener("click", () => {
+      clearTimeout(scrollCloseTimer);
+      window.removeEventListener("wheel", onScrollUp);
       renderWeekDetail(weekIdx - 1);
       document.dispatchEvent(new CustomEvent("week-selected", { detail: { weekIdx: weekIdx - 1 } }));
     });
   }
   if (hasNext) {
     document.getElementById("wd-next-btn").addEventListener("click", () => {
+      clearTimeout(scrollCloseTimer);
+      window.removeEventListener("wheel", onScrollUp);
       renderWeekDetail(weekIdx + 1);
       document.dispatchEvent(new CustomEvent("week-selected", { detail: { weekIdx: weekIdx + 1 } }));
     });
@@ -153,7 +167,7 @@ export function renderWeekDetail(weekIdx) {
   setTimeout(() => document.getElementById("week-detail-content").scrollIntoView({ behavior: "smooth", block: "center" }), 80);
 }
 
-function renderDayCol(day, dayIndex, t) {
+function renderDayCol(day, dayIndex, t, phaseAvgPace) {
   const isWeekend = dayIndex >= 5;
   const isRest    = day.acts.length === 0;
   const dayName   = DAYS[dayIndex];
@@ -170,45 +184,61 @@ function renderDayCol(day, dayIndex, t) {
       </div>`;
   }
 
-  const primary = day.acts[0];
-  const km      = day.acts.reduce((s, a) => s + a.distance / 1000, 0);
-  const avgHR   = primary.average_heartrate;
-  const zone    = hrZone(avgHR, t);
-  const badge   = runBadge(km, avgHR, t);
-  const statsHtml = day.acts.map(a => buildRunStats(a, t)).join('<div class="wd-run-divider"></div>');
-
-  const badgeHtml = badge
-    ? `<span class="wd-badge" style="background:${zone.color}">${badge}</span>`
-    : "";
+  const primary  = day.acts[0];
+  const zone     = hrZone(primary.average_heartrate, t);
+  const multiRun = day.acts.length > 1;
+  const statsHtml = day.acts.map(a => buildRunStats(a, t, phaseAvgPace, multiRun)).join("");
 
   return `
     <div class="wd-day wd-day--run${isWeekend ? " wd-day--weekend" : ""}"
          data-tooltip="${buildTooltipText(day.acts)}"
          style="--zone-col:${zone.color}">
-      <div class="wd-zone-accent" style="background:${zone.color}">
+      ${!multiRun ? `<div class="wd-zone-accent" style="background:${zone.color}">
         ${zone.name ? `<span class="wd-zone-label">${zone.name}</span>` : ""}
-      </div>
+      </div>` : ""}
       <div class="wd-day-head">
         <span class="wd-weekday">${dayName}</span>
         <span class="wd-datenum">${dateNum}</span>
       </div>
-      ${badgeHtml}
       <div class="wd-run-stats">${statsHtml}</div>
     </div>`;
 }
 
-function buildRunStats(a, t) {
-  const km    = (a.distance / 1000).toFixed(1);
-  const pace  = formatPace(1000 / a.average_speed / 60);
-  const time  = fmtTime(a.moving_time);
-  const start = a.start_date.slice(11, 16); // "HH:MM"
-  const hr    = a.average_heartrate ? `<span class="wd-hr">♥ ${Math.round(a.average_heartrate)}</span>` : "";
-  const elev  = a.total_elevation_gain > 5 ? `<span class="wd-elev">↑ ${Math.round(a.total_elevation_gain)} m</span>` : "";
+function buildRunStats(a, t, phaseAvgPace, multiRun = false) {
+  const kmVal    = a.distance / 1000;
+  const km       = kmVal.toFixed(1);
+  const runPace  = a.average_speed > 0 ? 1000 / a.average_speed / 60 : null;
+  const pace     = runPace ? formatPace(runPace) : "—";
+  const time     = fmtTime(a.moving_time);
+  const runName  = `<div class="wd-run-name">${a.name ?? "none"}</div>`;
+  const hr       = a.average_heartrate ? `<span class="wd-hr">♥ ${Math.round(a.average_heartrate)}</span>` : "";
+  const elev     = a.total_elevation_gain > 5 ? `<span class="wd-elev">↑ ${Math.round(a.total_elevation_gain)} m</span>` : "";
+
+  const zone  = hrZone(a.average_heartrate, t);
+  const badge = runBadge(kmVal, a.average_heartrate, t);
+
+  let paceArrow = "";
+  if (runPace && phaseAvgPace) {
+    const diff = (runPace - phaseAvgPace) / phaseAvgPace;
+    if (diff < -0.03)      paceArrow = `<span class="wd-pace-arrow wd-pace-faster">↑</span>`;
+    else if (diff > 0.03)  paceArrow = `<span class="wd-pace-arrow wd-pace-slower">↓</span>`;
+  }
+
+  const zoneBar = multiRun
+    ? `<div class="wd-zone-accent wd-zone-accent--inline" style="background:${zone.color}">
+        ${zone.name ? `<span class="wd-zone-label">${zone.name}</span>` : ""}
+       </div>`
+    : (badge ? `<span class="wd-badge" style="background:${zone.color}">${badge}</span>`
+             : `<span class="wd-badge-placeholder"></span>`);
 
   return `
-    <div class="wd-distance">${km} km</div>
-    <div class="wd-pace">${pace}</div>
-    <div class="wd-meta">${time} · ${start}${hr}${elev}</div>`;
+    <div class="wd-run-block">
+      ${zoneBar}
+      ${runName}
+      <div class="wd-distance">${km} km</div>
+      <div class="wd-pace">${pace}${paceArrow}</div>
+      <div class="wd-meta">${time}${hr}${elev}</div>
+    </div>`;
 }
 
 function buildTooltipText(acts) {
