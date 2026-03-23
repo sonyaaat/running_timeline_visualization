@@ -95,18 +95,65 @@ async function init() {
     // Render overview (always visible)
     renderOverview();
 
-    // Wire up reset button
-    document.getElementById("btn-reset").addEventListener("click", () => {
-      APP_STATE.zoomRange = null;
-      APP_STATE.hasZoom   = false;
-      APP_STATE.selectedPhaseId = null;
-      document.getElementById("section-detail").style.display       = "none";
-      document.getElementById("heatmap-section").style.display      = "none";
-document.getElementById("bp-detail-panel").style.display      = "none";
-      document.getElementById("week-detail-section").style.display  = "none";
-      APP_STATE.selectedWeekIdx = null;
-      renderOverview();
+    // ── Back button — single button, always one step back ──
+    const backBtn = document.getElementById("btn-go-back");
+
+    function fadeHide(el, done) {
+      el.style.transition = "opacity 0.3s ease";
+      el.style.opacity = "0";
+      setTimeout(() => {
+        el.style.display = "none";
+        el.style.opacity = "";
+        el.style.transition = "";
+        if (done) done();
+      }, 310);
+    }
+
+    window.updateBackBtn = function() {
+      const detailVisible = document.getElementById("section-detail")?.style.display !== "none";
+      backBtn.style.display = detailVisible ? "flex" : "none";
+    };
+
+    const doReset = () => {
+      const detail = document.getElementById("section-detail");
+      fadeHide(detail, () => {
+        APP_STATE.zoomRange = null;
+        APP_STATE.hasZoom   = false;
+        APP_STATE.selectedPhaseId = null;
+        document.getElementById("heatmap-section").style.display      = "none";
+        document.getElementById("bp-detail-panel").style.display      = "none";
+        document.getElementById("week-detail-section").style.display  = "none";
+        APP_STATE.selectedWeekIdx = null;
+        renderOverview();
+        updateBackBtn();
+        setTimeout(() => document.getElementById("section-overview")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      });
+    };
+
+    backBtn.addEventListener("click", () => {
+      const runPanel    = document.getElementById("wd-run-detail-panel");
+      const weekSection = document.getElementById("week-detail-section");
+
+      if (runPanel && runPanel.style.display !== "none") {
+        // Level 3 → 2: close run detail
+        fadeHide(runPanel, () => {
+          document.querySelectorAll(".wd-run-block").forEach(b => b.classList.remove("wd-run-block--active"));
+          setTimeout(() => document.getElementById("week-detail-content")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+        });
+      } else if (weekSection && weekSection.style.display !== "none") {
+        // Level 2 → 1: close week detail
+        fadeHide(weekSection, () => {
+          APP_STATE.selectedWeekIdx = null;
+          document.dispatchEvent(new CustomEvent("week-deselected"));
+          setTimeout(() => document.getElementById("zoom-timeline-chart")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+        });
+      } else {
+        // Level 1 → 0: close phase timeline
+        doReset();
+      }
     });
+
+    document.getElementById("btn-reset").addEventListener("click", doReset);
 
     console.log("[main] ✓ App initialized");
 

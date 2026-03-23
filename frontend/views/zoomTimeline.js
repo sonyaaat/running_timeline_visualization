@@ -54,6 +54,7 @@ export function renderDetail(weekStart, weekEnd) {
     dateStart === dateEnd ? dateStart : `${dateStart} – ${dateEnd}`;
 
   document.getElementById("section-detail").style.display      = "block";
+  if (typeof window.updateBackBtn === "function") window.updateBackBtn();
   document.getElementById("heatmap-section").style.display     = "none";
   document.getElementById("bp-section-label").style.display    = "none";
   document.getElementById("breakpoints-container").style.display = "none";
@@ -66,17 +67,33 @@ export function renderDetail(weekStart, weekEnd) {
   if (!APP_STATE.ztLineMetric) APP_STATE.ztLineMetric = "pace";
   renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
 
-  // ── Toggle buttons ──
-  document.querySelectorAll(".zt-toggle-btn").forEach(btn => {
+  // ── Line metric toggle buttons ──
+  document.querySelectorAll(".zt-toggle-btn[data-metric]").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.metric === APP_STATE.ztLineMetric);
     btn.onclick = () => {
       APP_STATE.ztLineMetric = btn.dataset.metric;
-      document.querySelectorAll(".zt-toggle-btn").forEach(b =>
+      document.querySelectorAll(".zt-toggle-btn[data-metric]").forEach(b =>
         b.classList.toggle("active", b === btn)
       );
       renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
     };
   });
+
+  // ── Distance bars toggle ──
+  if (APP_STATE.ztShowBars === undefined) APP_STATE.ztShowBars = true;
+  const distBtn = document.getElementById("zt-dist-toggle");
+  // Apply saved state immediately after render
+  const barsEl = document.querySelector(".zt-runs");
+  if (barsEl) barsEl.style.display = APP_STATE.ztShowBars ? "" : "none";
+  if (distBtn) {
+    distBtn.classList.toggle("active", APP_STATE.ztShowBars);
+    distBtn.onclick = () => {
+      APP_STATE.ztShowBars = !APP_STATE.ztShowBars;
+      distBtn.classList.toggle("active", APP_STATE.ztShowBars);
+      const el = document.querySelector(".zt-runs");
+      if (el) el.style.display = APP_STATE.ztShowBars ? "" : "none";
+    };
+  }
 
   // Scroll so the Phase Timeline is centered on screen
   setTimeout(() => {
@@ -428,14 +445,6 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         .attr("opacity", opacity)
         .style("pointer-events", "none");
 
-      // gray separator line between run segments
-      if (ri < weekRuns.length - 1) {
-        runG.append("rect")
-          .attr("x", bx).attr("y", yTop - 1)
-          .attr("width", barW).attr("height", 1.5)
-          .attr("fill", "#D1D5DB")
-          .style("pointer-events", "none");
-      }
 
       yBottom = yTop;
     });

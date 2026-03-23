@@ -80,6 +80,94 @@ def trigger_pipeline():
     return jsonify({"started": True})
 
 
+@app.route("/api/activities/<string:activity_id>/streams")
+def get_streams(activity_id):
+    """Fetch HR + pace streams for a single activity from Strava API."""
+    import json, requests
+    strava_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "strava.json")
+    try:
+        with open(strava_path) as f:
+            creds = json.load(f)
+    except FileNotFoundError:
+        return jsonify({"error": "strava.json not found"}), 404
+
+    # Refresh access token
+    token_resp = requests.post("https://www.strava.com/oauth/token", data={
+        "client_id":     creds["client_id"],
+        "client_secret": creds["client_secret"],
+        "refresh_token": creds["refresh_token"],
+        "grant_type":    "refresh_token"
+    })
+    if not token_resp.ok:
+        return jsonify({"error": "token refresh failed"}), 500
+    access_token = token_resp.json()["access_token"]
+
+    # Fetch streams
+    streams_resp = requests.get(
+        f"https://www.strava.com/api/v3/activities/{activity_id}/streams",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"keys": "time,heartrate,velocity_smooth", "key_by_type": "true"}
+    )
+    if not streams_resp.ok:
+        return jsonify({"error": "streams fetch failed"}), 500
+
+    data = streams_resp.json()
+    time_series = data.get("time", {}).get("data", [])
+    hr_series   = data.get("heartrate", {}).get("data", [])
+    vel_series  = data.get("velocity_smooth", {}).get("data", [])
+
+    result = []
+    for i, t in enumerate(time_series):
+        result.append({
+            "t":   t,
+            "hr":  hr_series[i]  if i < len(hr_series)  else None,
+            "vel": vel_series[i] if i < len(vel_series) else None,
+        })
+    return jsonify(result)
+
+
+@app.route("/api/activities/<string:activity_id>/laps")
+def get_laps(activity_id):
+    """Fetch per-km splits (splits_metric) for a single activity from Strava API."""
+    import json, requests
+    strava_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "strava.json")
+    try:
+        with open(strava_path) as f:
+            creds = json.load(f)
+    except FileNotFoundError:
+        return jsonify({"error": "strava.json not found"}), 404
+
+    token_resp = requests.post("https://www.strava.com/oauth/token", data={
+        "client_id":     creds["client_id"],
+        "client_secret": creds["client_secret"],
+        "refresh_token": creds["refresh_token"],
+        "grant_type":    "refresh_token"
+    })
+    if not token_resp.ok:
+        return jsonify({"error": "token refresh failed"}), 500
+    access_token = token_resp.json()["access_token"]
+
+    act_resp = requests.get(
+        f"https://www.strava.com/api/v3/activities/{activity_id}",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    if not act_resp.ok:
+        return jsonify({"error": "activity fetch failed"}), 500
+
+    splits = act_resp.json().get("splits_metric", [])
+    result = []
+    for i, s in enumerate(splits):
+        speed = s.get("average_speed", 0)
+        result.append({
+            "index":    i + 1,
+            "distance": s.get("distance", 0),
+            "pace":     (1000 / speed / 60) if speed > 0 else None,
+            "hr":       s.get("average_heartrate"),
+            "elev":     s.get("elevation_difference"),
+        })
+    return jsonify(result)
+
+
 @app.route("/api/activities")
 def get_activities():
     """Serve raw activities for week detail view."""
