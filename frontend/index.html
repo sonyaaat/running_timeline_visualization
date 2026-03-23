@@ -19,6 +19,23 @@
   <!-- Main app -->
   <div id="app" style="display:none">
 
+    <!-- Sign out button — fixed top right -->
+    <div id="user-section">
+      <span id="user-name"></span>
+      <button id="btn-logout" onclick="showLogoutModal()">Sign out</button>
+    </div>
+
+    <!-- Logout confirmation modal -->
+    <div id="logout-modal-overlay" style="display:none" onclick="hideLogoutModal()">
+      <div id="logout-modal" onclick="event.stopPropagation()">
+        <p>Are you sure you want to sign out?</p>
+        <div id="logout-modal-actions">
+          <button id="logout-cancel" onclick="hideLogoutModal()">Cancel</button>
+          <a href="/auth/logout" id="logout-confirm">Sign out</a>
+        </div>
+      </div>
+    </div>
+
     <!-- Header -->
     <header id="header">
       <h1><span class="accent">Running</span> Phase Explorer</h1>

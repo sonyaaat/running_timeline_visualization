@@ -1,9 +1,13 @@
 import os
 import sys
+import json
+import uuid
 import threading
-from flask import Flask, jsonify, send_from_directory
+import tempfile
+import requests
 
-# Add project root to path
+from flask import Flask, jsonify, send_from_directory, redirect, request, session
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.pipeline import run_pipeline
@@ -14,149 +18,311 @@ app = Flask(
     static_url_path=""
 )
 
-# Track pipeline status
-pipeline_status = {
-    "running": False,
-    "done": False,
-    "error": None,
-    "message": ""
-}
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
 
+STRAVA_CLIENT_ID     = os.environ.get("STRAVA_CLIENT_ID")
+STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET")
+STRAVA_REDIRECT_URI  = os.environ.get("STRAVA_REDIRECT_URI", "http://localhost:5000/auth/callback")
+
+# Per-user pipeline status keyed by session_id
+_user_status = {}
+_status_lock = threading.Lock()
+
+SESSIONS_DIR = os.path.join(tempfile.gettempdir(), "rpe_sessions")
+os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+def _session_id():
+    if "sid" not in session:
+        session["sid"] = str(uuid.uuid4())
+    return session["sid"]
+
+
+def _user_dir():
+    d = os.path.join(SESSIONS_DIR, _session_id())
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _refresh_access_token():
+    """Exchange refresh_token for a fresh access_token. Updates session."""
+    resp = requests.post("https://www.strava.com/oauth/token", data={
+        "client_id":     STRAVA_CLIENT_ID,
+        "client_secret": STRAVA_CLIENT_SECRET,
+        "refresh_token": session["refresh_token"],
+        "grant_type":    "refresh_token",
+    })
+    if not resp.ok:
+        return None
+    data = resp.json()
+    session["refresh_token"] = data.get("refresh_token", session["refresh_token"])
+    return data.get("access_token")
+
+
+def _fetch_all_activities(access_token):
+    """Fetch all run-type activities via Strava REST API."""
+    RUN_TYPES = {"Run", "TrailRun", "VirtualRun", "Treadmill"}
+    activities = []
+    page = 1
+    while True:
+        resp = requests.get(
+            "https://www.strava.com/api/v3/athlete/activities",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"per_page": 200, "page": page},
+        )
+        if not resp.ok:
+            break
+        batch = resp.json()
+        if not batch:
+            break
+        for a in batch:
+            if a.get("type") not in RUN_TYPES:
+                continue
+            activities.append({
+                "id":                   a.get("id"),
+                "name":                 a.get("name"),
+                "start_date":           a.get("start_date"),
+                "distance":             a.get("distance"),
+                "moving_time":          a.get("moving_time"),
+                "average_speed":        a.get("average_speed"),
+                "average_heartrate":    a.get("average_heartrate"),
+                "total_elevation_gain": a.get("total_elevation_gain"),
+                "type":                 a.get("type"),
+            })
+        page += 1
+    return activities
+
+
+def _is_authenticated():
+    return "refresh_token" in session
+
+
+# ─── auth routes ──────────────────────────────────────────────────────────────
+
+@app.route("/login")
+def login_page():
+    return send_from_directory("../frontend", "login.html")
+
+
+@app.route("/auth/strava")
+def auth_strava():
+    url = (
+        "https://www.strava.com/oauth/authorize"
+        f"?client_id={STRAVA_CLIENT_ID}"
+        f"&redirect_uri={STRAVA_REDIRECT_URI}"
+        f"&response_type=code"
+        f"&approval_prompt=auto"
+        f"&scope=activity:read_all"
+    )
+    return redirect(url)
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    if request.args.get("error"):
+        return redirect("/login?error=access_denied")
+
+    code = request.args.get("code")
+    if not code:
+        return redirect("/login?error=no_code")
+
+    resp = requests.post("https://www.strava.com/oauth/token", data={
+        "client_id":     STRAVA_CLIENT_ID,
+        "client_secret": STRAVA_CLIENT_SECRET,
+        "code":          code,
+        "grant_type":    "authorization_code",
+    })
+    if not resp.ok:
+        return redirect("/login?error=token_exchange_failed")
+
+    data = resp.json()
+    session["refresh_token"] = data["refresh_token"]
+    session["athlete_name"]  = data.get("athlete", {}).get("firstname", "Athlete")
+    _session_id()  # ensure sid is set
+
+    return redirect("/")
+
+
+@app.route("/auth/logout")
+def auth_logout():
+    session.clear()
+    return redirect("/login")
+
+
+# ─── main app ─────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
+    if not _is_authenticated():
+        return redirect("/login")
     return send_from_directory("../frontend", "index.html")
 
 
+@app.route("/api/me")
+def api_me():
+    if not _is_authenticated():
+        return jsonify({"authenticated": False}), 401
+    return jsonify({
+        "authenticated": True,
+        "name": session.get("athlete_name", "Athlete"),
+    })
+
+
 @app.route("/api/status")
-def status():
-    """Frontend polls this to check if pipeline is running."""
-    return jsonify(pipeline_status)
+def api_status():
+    if not _is_authenticated():
+        return jsonify({"error": "not authenticated"}), 401
+    sid = _session_id()
+    with _status_lock:
+        status = _user_status.get(sid, {
+            "running": False, "done": False, "error": None, "message": ""
+        })
+    return jsonify(status)
 
 
 @app.route("/api/run-pipeline", methods=["POST"])
 def trigger_pipeline():
-    """
-    Triggers the full pipeline in a background thread.
-    Returns immediately with {"started": true}.
-    Frontend polls /api/status to track progress.
-    """
-    global pipeline_status
+    if not _is_authenticated():
+        return jsonify({"started": False, "reason": "Not authenticated"}), 401
 
-    if pipeline_status["running"]:
-        return jsonify({"started": False, "reason": "Already running"})
+    sid = _session_id()
 
-    pipeline_status = {
-        "running": True,
-        "done": False,
-        "error": None,
-        "message": "Fetching activities from Strava..."
-    }
+    with _status_lock:
+        current = _user_status.get(sid, {})
+        if current.get("running"):
+            return jsonify({"started": False, "reason": "Already running"})
+        _user_status[sid] = {
+            "running": True, "done": False, "error": None,
+            "message": "Fetching activities from Strava..."
+        }
+
+    user_dir = _user_dir()
+    # Capture session values now (thread can't access Flask session)
+    refresh_token = session["refresh_token"]
 
     def run():
-        global pipeline_status
+        with _status_lock:
+            _user_status[sid]["message"] = "Fetching activities from Strava..."
+
         try:
-            result = run_pipeline(force_refresh=False)
-            pipeline_status = {
-                "running": False,
-                "done": True,
-                "error": None,
-                "message": f"Done. {result['total_weeks']} weeks, "
-                           f"{len(result['phases'])} phases detected."
-            }
-            print("[app] Pipeline completed successfully")
+            # 1. Refresh token
+            token_resp = requests.post("https://www.strava.com/oauth/token", data={
+                "client_id":     STRAVA_CLIENT_ID,
+                "client_secret": STRAVA_CLIENT_SECRET,
+                "refresh_token": refresh_token,
+                "grant_type":    "refresh_token",
+            })
+            if not token_resp.ok:
+                raise RuntimeError("Failed to refresh Strava token")
+            access_token = token_resp.json()["access_token"]
+
+            # 2. Fetch activities
+            activities = _fetch_all_activities(access_token)
+            if not activities:
+                raise RuntimeError("No run activities found on your Strava account")
+
+            with _status_lock:
+                _user_status[sid]["message"] = f"Fetched {len(activities)} runs. Analyzing..."
+
+            # 3. Run pipeline
+            result = run_pipeline(activities=activities, data_dir=user_dir)
+
+            with _status_lock:
+                _user_status[sid] = {
+                    "running": False,
+                    "done":    True,
+                    "error":   None,
+                    "message": f"Done. {result['total_weeks']} weeks, {len(result['phases'])} phases detected.",
+                }
+            print(f"[app] Pipeline done for session {sid[:8]}")
+
         except Exception as e:
-            pipeline_status = {
-                "running": False,
-                "done": False,
-                "error": str(e),
-                "message": f"Error: {str(e)}"
-            }
-            print(f"[app] Pipeline error: {e}")
+            with _status_lock:
+                _user_status[sid] = {
+                    "running": False,
+                    "done":    False,
+                    "error":   str(e),
+                    "message": f"Error: {e}",
+                }
+            print(f"[app] Pipeline error for session {sid[:8]}: {e}")
 
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-
+    threading.Thread(target=run, daemon=True).start()
     return jsonify({"started": True})
+
+
+@app.route("/api/data")
+def api_data():
+    """Serve phases + weekly + breakpoints for the current user."""
+    if not _is_authenticated():
+        return jsonify({"error": "not authenticated"}), 401
+    path = os.path.join(_user_dir(), "phases.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "no data yet"}), 404
+    with open(path, encoding="utf8") as f:
+        return jsonify(json.load(f))
+
+
+@app.route("/api/activities")
+def get_activities():
+    """Serve raw activities for the current user."""
+    if not _is_authenticated():
+        return jsonify({"error": "not authenticated"}), 401
+    path = os.path.join(_user_dir(), "raw_activities.json")
+    if not os.path.exists(path):
+        return jsonify([])
+    with open(path, encoding="utf8") as f:
+        return jsonify(json.load(f))
 
 
 @app.route("/api/activities/<string:activity_id>/streams")
 def get_streams(activity_id):
-    """Fetch HR + pace streams for a single activity from Strava API."""
-    import json, requests
-    strava_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "strava.json")
-    try:
-        with open(strava_path) as f:
-            creds = json.load(f)
-    except FileNotFoundError:
-        return jsonify({"error": "strava.json not found"}), 404
+    if not _is_authenticated():
+        return jsonify({"error": "not authenticated"}), 401
 
-    # Refresh access token
-    token_resp = requests.post("https://www.strava.com/oauth/token", data={
-        "client_id":     creds["client_id"],
-        "client_secret": creds["client_secret"],
-        "refresh_token": creds["refresh_token"],
-        "grant_type":    "refresh_token"
-    })
-    if not token_resp.ok:
+    access_token = _refresh_access_token()
+    if not access_token:
         return jsonify({"error": "token refresh failed"}), 500
-    access_token = token_resp.json()["access_token"]
 
-    # Fetch streams
-    streams_resp = requests.get(
+    resp = requests.get(
         f"https://www.strava.com/api/v3/activities/{activity_id}/streams",
         headers={"Authorization": f"Bearer {access_token}"},
-        params={"keys": "time,heartrate,velocity_smooth", "key_by_type": "true"}
+        params={"keys": "time,heartrate,velocity_smooth", "key_by_type": "true"},
     )
-    if not streams_resp.ok:
+    if not resp.ok:
         return jsonify({"error": "streams fetch failed"}), 500
 
-    data = streams_resp.json()
-    time_series = data.get("time", {}).get("data", [])
-    hr_series   = data.get("heartrate", {}).get("data", [])
-    vel_series  = data.get("velocity_smooth", {}).get("data", [])
+    data = resp.json()
+    time_s = data.get("time",             {}).get("data", [])
+    hr_s   = data.get("heartrate",        {}).get("data", [])
+    vel_s  = data.get("velocity_smooth",  {}).get("data", [])
 
-    result = []
-    for i, t in enumerate(time_series):
-        result.append({
-            "t":   t,
-            "hr":  hr_series[i]  if i < len(hr_series)  else None,
-            "vel": vel_series[i] if i < len(vel_series) else None,
-        })
-    return jsonify(result)
+    return jsonify([
+        {"t": t, "hr": hr_s[i] if i < len(hr_s) else None,
+                 "vel": vel_s[i] if i < len(vel_s) else None}
+        for i, t in enumerate(time_s)
+    ])
 
 
 @app.route("/api/activities/<string:activity_id>/laps")
 def get_laps(activity_id):
-    """Fetch per-km splits (splits_metric) for a single activity from Strava API."""
-    import json, requests
-    strava_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "strava.json")
-    try:
-        with open(strava_path) as f:
-            creds = json.load(f)
-    except FileNotFoundError:
-        return jsonify({"error": "strava.json not found"}), 404
+    if not _is_authenticated():
+        return jsonify({"error": "not authenticated"}), 401
 
-    token_resp = requests.post("https://www.strava.com/oauth/token", data={
-        "client_id":     creds["client_id"],
-        "client_secret": creds["client_secret"],
-        "refresh_token": creds["refresh_token"],
-        "grant_type":    "refresh_token"
-    })
-    if not token_resp.ok:
+    access_token = _refresh_access_token()
+    if not access_token:
         return jsonify({"error": "token refresh failed"}), 500
-    access_token = token_resp.json()["access_token"]
 
-    act_resp = requests.get(
+    resp = requests.get(
         f"https://www.strava.com/api/v3/activities/{activity_id}",
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={"Authorization": f"Bearer {access_token}"},
     )
-    if not act_resp.ok:
+    if not resp.ok:
         return jsonify({"error": "activity fetch failed"}), 500
 
-    splits = act_resp.json().get("splits_metric", [])
     result = []
-    for i, s in enumerate(splits):
+    for i, s in enumerate(resp.json().get("splits_metric", [])):
         speed = s.get("average_speed", 0)
         result.append({
             "index":    i + 1,
@@ -168,19 +334,11 @@ def get_laps(activity_id):
     return jsonify(result)
 
 
-@app.route("/api/activities")
-def get_activities():
-    """Serve raw activities for week detail view."""
-    import json
-    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw_activities.json")
-    try:
-        with open(data_path) as f:
-            return jsonify(json.load(f))
-    except FileNotFoundError:
-        return jsonify([])
-
-
 if __name__ == "__main__":
-    print("[app] Starting Running Phase Explorer server...")
-    print("[app] Open http://localhost:5000")
-    app.run(debug=False, port=5000)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+    print(f"[app] Starting Running Phase Explorer server...")
+    print(f"[app] Open http://localhost:{args.port}")
+    app.run(debug=False, port=args.port)

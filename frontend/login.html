@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Running Phase Explorer — Connect</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #FAFAF9;
+      color: #1F2937;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      text-align: center;
+      max-width: 400px;
+      padding: 48px 40px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+
+    .logo {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #111827;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+
+    h1 span { color: #4F7942; }
+
+    .subtitle {
+      font-size: 14px;
+      color: #6B7280;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .btn-strava {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      background: #FC4C02;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-strava:hover {
+      background: #e04300;
+      transform: translateY(-1px);
+    }
+
+    .btn-strava svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+
+    .note {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #9CA3AF;
+      line-height: 1.6;
+    }
+
+    .error-msg {
+      margin-bottom: 20px;
+      padding: 10px 16px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #DC2626;
+      display: none;
+    }
+
+    .error-msg.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🏃</div>
+    <h1><span>Running</span> Phase Explorer</h1>
+    <p class="subtitle">
+      Visualize your training phases, spot patterns, and understand how your running evolves over time.
+    </p>
+
+    <div id="error-msg" class="error-msg"></div>
+
+    <a href="/auth/strava" class="btn-strava">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+      </svg>
+      Connect with Strava
+    </a>
+
+    <p class="note">
+      We only read your activity data.<br>
+      Your tokens are stored only in your browser session and never shared.
+    </p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    if (error) {
+      const el = document.getElementById("error-msg");
+      const messages = {
+        "access_denied": "You denied access to Strava. Please try again.",
+        "no_code": "Something went wrong with the Strava redirect. Please try again.",
+        "token_exchange_failed": "Could not connect to Strava. Please try again.",
+      };
+      el.textContent = messages[error] || "An error occurred. Please try again.";
+      el.classList.add("visible");
+    }
+  </script>
+</body>
+</html>
