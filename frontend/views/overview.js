@@ -1,6 +1,6 @@
 import APP_STATE from "../js/state.js";
 import { phaseColor, phaseTextColor, PHASE_SCALE } from "../js/colors.js";
-import { formatWeekLabel, showTooltip, hideTooltip } from "../js/utils.js";
+import { formatWeekLabel, showTooltip, moveTooltip, hideTooltip } from "../js/utils.js";
 import { renderDetail as renderZoomDetail } from "./zoomTimeline.js";
 
 const STRIP_H    = 32;
@@ -67,6 +67,33 @@ export function renderOverview() {
 
   const usedNames = new Set(activePhases.map(p => p.name));
   let lx = 0;
+
+  // Rest indicator — first (least intense)
+  const restItemW = 16 + 4 * 7 + 18;
+  const restG = legBarG.append("g")
+    .style("cursor", "default")
+    .on("mouseover", (event) => {
+      showTooltip(tooltip, event,
+        `<div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:6px">Rest</div>
+         <div style="color:#9CA3AF;font-size:12px;line-height:1.6;max-width:200px">No running activity for 10+ days. Gap between training blocks.</div>`);
+    })
+    .on("mousemove", (event) => moveTooltip(tooltip, event))
+    .on("mouseout", () => hideTooltip(tooltip));
+
+  restG.append("circle")
+    .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
+    .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
+  restG.append("text")
+    .attr("x", lx + 16).attr("y", cy)
+    .attr("dominant-baseline", "middle")
+    .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+    .text("Rest");
+  restG.append("rect")
+    .attr("x", lx).attr("y", cy - 10)
+    .attr("width", restItemW).attr("height", 20)
+    .attr("fill", "transparent");
+  lx += restItemW;
+
   PHASE_SCALE.filter(p => usedNames.has(p.name)).forEach(p => {
     const itemW = 16 + p.label.length * 7 + 18;
     const itemG = legBarG.append("g")
@@ -76,10 +103,7 @@ export function renderOverview() {
           `<div style="font-weight:700;font-size:14px;color:${p.bg};margin-bottom:6px">${p.label}</div>
            <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:220px">${PHASE_DESCRIPTIONS[p.name] ?? ""}</div>`);
       })
-      .on("mousemove", (event) => {
-        tooltip.style("left", (event.pageX + 12) + "px")
-               .style("top",  (event.pageY - 28) + "px");
-      })
+      .on("mousemove", (event) => moveTooltip(tooltip, event))
       .on("mouseout", () => hideTooltip(tooltip));
 
     itemG.append("circle")
@@ -99,33 +123,6 @@ export function renderOverview() {
 
     lx += itemW;
   });
-
-  // Rest indicator
-  const restG = legBarG.append("g")
-    .style("cursor", "default")
-    .on("mouseover", (event) => {
-      showTooltip(tooltip, event,
-        `<div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:6px">Rest</div>
-         <div style="color:#9CA3AF;font-size:12px;line-height:1.6;max-width:200px">No running activity for 10+ days. Gap between training blocks.</div>`);
-    })
-    .on("mousemove", (event) => {
-      tooltip.style("left", (event.pageX + 12) + "px")
-             .style("top",  (event.pageY - 28) + "px");
-    })
-    .on("mouseout", () => hideTooltip(tooltip));
-
-  restG.append("circle")
-    .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
-    .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
-  restG.append("text")
-    .attr("x", lx + 16).attr("y", cy)
-    .attr("dominant-baseline", "middle")
-    .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
-    .text("Rest");
-  restG.append("rect")
-    .attr("x", lx).attr("y", cy - 10)
-    .attr("width", 16 + 4 * 7 + 18).attr("height", 20)
-    .attr("fill", "transparent");
 
   // Drag hint — right-aligned
   legBarG.append("text")
@@ -182,7 +179,7 @@ export function renderOverview() {
           showTooltip(tooltip, event, html);
         })
         .on("mousemove", (event) => {
-          tooltip.style("left", (event.pageX + 12) + "px").style("top", (event.pageY - 36) + "px");
+          moveTooltip(tooltip, event);
         })
         .on("mouseout", () => hideTooltip(tooltip))
         .on("click", () => {
@@ -398,7 +395,6 @@ export function renderOverview() {
         <div><span style="color:#9CA3AF;display:inline-block;width:46px">pace</span>${pac}</div>
       </div>`;
     showTooltip(tooltip, event, html);
-    tooltip.style("left", (event.pageX + 14) + "px").style("top", (event.pageY - 44) + "px");
   });
   dragArea.on("mouseleave", () => {
     crossLine.style("display", "none");
@@ -622,6 +618,7 @@ function buildMonthTicks(weekly, x, innerW) {
   const ticks   = [];
   let lastMonth = null;
   let lastPx    = -999;
+  let isFirst   = true;
 
   weekly.forEach((w, i) => {
     if (!w.week) return;
@@ -635,15 +632,17 @@ function buildMonthTicks(weekly, x, innerW) {
     if (px < 6 || px > innerW - 6) return;
 
     const isJanuary = d.getMonth() === 0;
-    const minGap    = isJanuary ? 30 : 22;
+    const showYear  = isJanuary || isFirst;
+    const minGap    = showYear ? 30 : 22;
     if (px - lastPx < minGap) return;
     lastPx = px;
 
-    const label = isJanuary
+    const label = showYear
       ? d.toLocaleDateString("en-US", { month: "short", year: "numeric" })
       : d.toLocaleDateString("en-US", { month: "short" });
 
-    ticks.push({ px, label, isJanuary });
+    ticks.push({ px, label, isJanuary: showYear });
+    isFirst = false;
   });
   return ticks;
 }

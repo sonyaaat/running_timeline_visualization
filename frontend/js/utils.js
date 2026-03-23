@@ -41,9 +41,51 @@ export function pctColor(value, biggerIsBetter = true) {
 export function showTooltip(tooltip, event, html) {
   tooltip
     .style("display", "block")
-    .style("left", (event.pageX + 12) + "px")
-    .style("top",  (event.pageY - 28) + "px")
+    .style("left", "-9999px")
+    .style("top", "-9999px")
     .html(html);
+
+  const node = tooltip.node();
+  const tw = node.offsetWidth;
+  const th = node.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const scrollX = window.scrollX || window.pageXOffset;
+  const scrollY = window.scrollY || window.pageYOffset;
+
+  const spaceRight = vw - (event.clientX + 12);
+  const left = spaceRight >= tw
+    ? event.pageX + 12
+    : event.pageX - tw - 12;
+
+  const spaceBelow = vh - (event.clientY - 28);
+  const top = spaceBelow >= th
+    ? event.pageY - 28
+    : event.pageY - th + 28;
+
+  tooltip
+    .style("left", Math.max(scrollX, left) + "px")
+    .style("top",  Math.max(scrollY, top) + "px");
+}
+
+export function moveTooltip(tooltip, event) {
+  const node = tooltip.node();
+  const tw = node.offsetWidth;
+  const th = node.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const left = (vw - (event.clientX + 12)) >= tw
+    ? event.pageX + 12
+    : event.pageX - tw - 12;
+
+  const top = (vh - (event.clientY - 28)) >= th
+    ? event.pageY - 28
+    : event.pageY - th + 28;
+
+  tooltip
+    .style("left", Math.max(window.pageXOffset, left) + "px")
+    .style("top",  Math.max(window.pageYOffset, top) + "px");
 }
 
 export function hideTooltip(tooltip) {

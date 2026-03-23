@@ -16,11 +16,11 @@ export function phaseTextColor(phaseName) {
 
 // Fixed ordered scale for legend rendering
 export const PHASE_SCALE = [
+  { name: "Base",       label: "Base",       ...PHASE_COLORS["Base"]       },
   { name: "Building",   label: "Building",   ...PHASE_COLORS["Building"]   },
   { name: "Peak",       label: "Peak",       ...PHASE_COLORS["Peak"]       },
-  { name: "Base",       label: "Base",       ...PHASE_COLORS["Base"]       },
-  { name: "Recovery",   label: "Recovery",   ...PHASE_COLORS["Recovery"]   },
   { name: "Sharpening", label: "Sharpening", ...PHASE_COLORS["Sharpening"] },
+  { name: "Recovery",   label: "Recovery",   ...PHASE_COLORS["Recovery"]   },
 ];
 
 export function inactiveColor()     { return "#B0B7C3"; }

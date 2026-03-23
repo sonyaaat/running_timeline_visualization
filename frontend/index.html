@@ -21,8 +21,8 @@
 
     <!-- Header -->
     <header id="header">
-      <h1>Running Phase Explorer</h1>
-      <p id="meta-label"></p>
+      <h1><span class="accent">Running</span> Phase Explorer</h1>
+      <p id="meta-label"><span id="meta-runs"></span><span id="meta-since"></span></p>
       <div id="sync-section" style="margin-top: 12px">
         <button id="btn-sync" onclick="runPipeline()">
           ↻ Sync with Strava
@@ -52,6 +52,7 @@
           <button class="zt-toggle-btn active" data-metric="pace">Pace</button>
           <button class="zt-toggle-btn" data-metric="hr">Avg HR</button>
           <button class="zt-toggle-btn" data-metric="efficiency">Efficiency</button>
+          <span class="info-hint zt-no-data-warn" id="zt-warn-data" style="display:none" data-tooltip="">!</span>
           <span class="zt-toggle-sep"></span>
           <button class="zt-toggle-btn zt-dist-btn active" id="zt-dist-toggle">Show distance</button>
         </div>

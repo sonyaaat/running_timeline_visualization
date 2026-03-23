@@ -50,22 +50,49 @@ body {
 }
 
 #header {
-  padding-top: 32px;
-  padding-bottom: 0;
+  padding: 48px 32px 36px;
   margin-bottom: 28px;
+  text-align: center;
+  border-bottom: 1px solid #F3F4F6;
 }
 
 #header h1 {
-  font-size: 26px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 700;
   color: #111827;
-  margin-bottom: 6px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  margin-bottom: 10px;
+}
+
+#header h1 span.accent {
+  color: #4F7942;
 }
 
 #meta-label {
-  font-size: 14px;
-  color: #888;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #F3F4F6;
+  border-radius: 999px;
+  padding: 5px 16px;
+  margin-top: 0;
+}
+
+#meta-runs {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+#meta-since {
+  font-size: 13px;
+  color: #6B7280;
+  font-weight: 400;
+}
+
+#meta-label::before {
+  content: "🏃";
+  font-size: 13px;
 }
 
 /* Overview section — full width */

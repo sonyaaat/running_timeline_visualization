@@ -87,10 +87,10 @@ async function init() {
     // Populate header meta label
     const meta = data.meta;
     const runs = meta.total_runs ?? "?";
-    const start = formatDate(meta.date_start);
-    const end   = formatDate(meta.date_end);
-    document.getElementById("meta-label").textContent =
-      `${runs} runs · ${start} – ${end}`;
+    const startDateStr = (meta.date_start ?? "").split("/")[0];
+    const start = formatDate(startDateStr);
+    document.getElementById("meta-runs").textContent = `${runs} runs`;
+    document.getElementById("meta-since").textContent = `since ${start}`;
 
     // Render overview (always visible)
     renderOverview();

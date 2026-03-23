@@ -1,6 +1,6 @@
 import APP_STATE from "../js/state.js";
 
-import { formatPace } from "../js/utils.js";
+import { formatPace, showTooltip, moveTooltip, hideTooltip } from "../js/utils.js";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -38,7 +38,7 @@ function buildThresholds(activities) {
 
 // Returns zone name + color for a given average HR
 function hrZone(hr, t) {
-  if (!hr) return { name: null, color: "#9CA3AF" };
+  if (!hr) return { name: "no HR", color: "#9CA3AF" };
   if (hr < t.hr.easy)      return { name: "easy",      color: "#60A5FA" }; // blue
   if (hr < t.hr.aerobic)   return { name: "aerobic",   color: "#34D399" }; // green
   if (hr < t.hr.tempo)     return { name: "tempo",     color: "#FBBF24" }; // yellow
@@ -112,8 +112,9 @@ export function renderWeekDetail(weekIdx) {
 
   content.innerHTML = `
     <div class="wd-header">
-      <div class="wd-header-top">
+      <div class="wd-header-left">
         <span class="wd-label">${headerLabel}</span>
+        <div class="section-label wd-section-label">Week Detail <span class="info-hint" data-tooltip="A breakdown of every day in the selected week. Click any run to see its splits and HR chart. Use ← → to navigate between weeks.">?</span></div>
         <span class="wd-summary">${weekActs.length} run${weekActs.length !== 1 ? "s" : ""} · ${totalKm.toFixed(1)} km</span>
       </div>
       <div class="wd-nav">
@@ -125,8 +126,46 @@ export function renderWeekDetail(weekIdx) {
     <div class="wd-grid">
       ${days.map((day, di) => renderDayCol(day, di, thresholds, phaseAvgPace)).join("")}
     </div>
+    <div class="wd-legend">
+      <div class="wd-legend-group">
+        <span class="wd-legend-title">HR zone</span>
+        <div class="wd-legend-items">
+          <span class="wd-legend-item" data-wd-tip="No HR|#9CA3AF|No heart rate recorded for this run."><span class="wd-legend-dot" style="background:#9CA3AF"></span>No HR</span>
+          <span class="wd-legend-item" data-wd-tip="Easy|#60A5FA|HR below 25th percentile. Comfortable, recovery-level effort."><span class="wd-legend-dot" style="background:#60A5FA"></span>Easy</span>
+          <span class="wd-legend-item" data-wd-tip="Aerobic|#34D399|HR at 25–50th percentile. Steady aerobic base effort."><span class="wd-legend-dot" style="background:#34D399"></span>Aerobic</span>
+          <span class="wd-legend-item" data-wd-tip="Tempo|#FBBF24|HR at 50–75th percentile. Comfortably hard, lactate threshold zone."><span class="wd-legend-dot" style="background:#FBBF24"></span>Tempo</span>
+          <span class="wd-legend-item" data-wd-tip="Threshold|#F97316|HR at 75–90th percentile. Hard effort near lactate threshold."><span class="wd-legend-dot" style="background:#F97316"></span>Threshold</span>
+          <span class="wd-legend-item" data-wd-tip="Hard|#EF4444|HR above 90th percentile. Maximum intensity effort."><span class="wd-legend-dot" style="background:#EF4444"></span>Hard</span>
+        </div>
+      </div>
+      <div class="wd-legend-group wd-legend-group--right">
+        <span class="wd-legend-title">Run type</span>
+        <div class="wd-legend-items">
+          <span class="wd-legend-item" data-wd-tip="EASY|#60A5FA|Short, low-intensity run — distance below 25th percentile, easy or aerobic zone."><span class="wd-legend-badge" style="background:#60A5FA">EASY</span></span>
+          <span class="wd-legend-item" data-wd-tip="LONG|#34D399|Long run — distance at or above 80th percentile of all your runs."><span class="wd-legend-badge" style="background:#34D399">LONG</span></span>
+          <span class="wd-legend-item" data-wd-tip="HARD|#EF4444|High-intensity run — threshold or max HR zone effort."><span class="wd-legend-badge" style="background:#EF4444">HARD</span></span>
+        </div>
+      </div>
+    </div>
     <div id="wd-run-detail-panel" class="wd-run-detail-panel" style="display:none"></div>
   `;
+
+  // ── Legend tooltips ──
+  const wdTooltip = d3.select("body").select(".wd-legend-tooltip").empty()
+    ? d3.select("body").append("div").attr("class", "tooltip wd-legend-tooltip")
+    : d3.select("body").select(".wd-legend-tooltip");
+  wdTooltip.style("display", "none");
+
+  content.querySelectorAll("[data-wd-tip]").forEach(el => {
+    el.addEventListener("mouseenter", (event) => {
+      const [title, color, text] = el.dataset.wdTip.split("|");
+      showTooltip(wdTooltip, event,
+        `<div style="font-weight:700;font-size:14px;color:${color};margin-bottom:6px">${title}</div>
+         <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:220px">${text}</div>`);
+    });
+    el.addEventListener("mousemove", (event) => moveTooltip(wdTooltip, event));
+    el.addEventListener("mouseleave", () => hideTooltip(wdTooltip));
+  });
 
   function closeWeekDetail() {
     section.style.display = "none";

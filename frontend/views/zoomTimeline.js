@@ -1,12 +1,13 @@
 import APP_STATE from "../js/state.js";
-import { phaseColor, phaseTextColor } from "../js/colors.js";
-import { formatWeekLabel, formatPace, showTooltip, hideTooltip } from "../js/utils.js";
+import { phaseColor, phaseTextColor, PHASE_SCALE } from "../js/colors.js";
+import { formatWeekLabel, formatPace, showTooltip, moveTooltip, hideTooltip } from "../js/utils.js";
 
 import { renderWeekDetail } from "./weekDetail.js";
 
 const STRIP_H      = 72;
 const CHART_H      = 260;
 const WEEK_LABEL_H = 56;
+const LEGEND_H     = 44;
 const MARGIN       = { top: 16, right: 64, bottom: 10, left: 44 };
 
 let _weekDeselectedWeekStart = null;
@@ -67,6 +68,39 @@ export function renderDetail(weekStart, weekEnd) {
   if (!APP_STATE.ztLineMetric) APP_STATE.ztLineMetric = "pace";
   renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
 
+  // ── Data-availability warnings ──
+  const visWeeklyForCheck = (APP_STATE.weekly || []).slice(weekStart, weekEnd + 1);
+  const activeWeeks = visWeeklyForCheck.filter(w => {
+    const p = APP_STATE.phases.find(ph => ph.id === w.phase_id);
+    return !p || p.type !== "Inactive";
+  });
+
+  const weeksWithHR = activeWeeks.filter(w => {
+    const parts = w.week?.includes("/") ? w.week.split("/") : [w.week, w.week];
+    return (APP_STATE.activities || []).some(a =>
+      a.type === "Run" && a.average_heartrate &&
+      a.start_date.slice(0, 10) >= parts[0] && a.start_date.slice(0, 10) <= parts[1]
+    );
+  });
+  const missingHRCount = activeWeeks.length - weeksWithHR.length;
+  const weeksWithEff   = activeWeeks.filter(w => w.efficiency != null);
+  const missingEffCount = activeWeeks.length - weeksWithEff.length;
+
+  const warnEl = document.getElementById("zt-warn-data");
+  if (warnEl) {
+    const parts = [];
+    if (missingHRCount > 0)
+      parts.push(missingHRCount === activeWeeks.length
+        ? "No heart rate data — Avg HR line cannot be shown."
+        : `HR missing for ${missingHRCount} of ${activeWeeks.length} weeks — Avg HR line may have gaps.`);
+    if (missingEffCount > 0)
+      parts.push(missingEffCount === activeWeeks.length
+        ? "No efficiency data — Efficiency line cannot be shown."
+        : `Efficiency missing for ${missingEffCount} of ${activeWeeks.length} weeks — Efficiency line may have gaps.`);
+    warnEl.style.display = parts.length > 0 ? "" : "none";
+    warnEl.dataset.tooltip = parts.join(" ");
+  }
+
   // ── Line metric toggle buttons ──
   document.querySelectorAll(".zt-toggle-btn[data-metric]").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.metric === APP_STATE.ztLineMetric);
@@ -122,7 +156,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
   const W      = container.clientWidth || window.innerWidth;
   const innerW = W - MARGIN.left - MARGIN.right;
-  const totalH = MARGIN.top + STRIP_H + CHART_H + WEEK_LABEL_H + MARGIN.bottom;
+  const totalH = MARGIN.top + STRIP_H + CHART_H + WEEK_LABEL_H + LEGEND_H + MARGIN.bottom;
 
   const svg = d3.select(container)
     .append("svg")
@@ -229,10 +263,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
              ${weeks}w · ${s.km_per_week?.toFixed(1) ?? "—"} km/wk · ${formatPace(s.avg_pace)}`);
         }
       })
-      .on("mousemove", (event) => {
-        tooltip.style("left", (event.pageX + 12) + "px")
-               .style("top",  (event.pageY - 28) + "px");
-      })
+      .on("mousemove", (event) => moveTooltip(tooltip, event))
       .on("mouseout", () => hideTooltip(tooltip))
       .on("click", () => { if (!isInactive) handlePhaseClick(phase, weekStart, weekEnd); });
 
@@ -386,7 +417,8 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   function _zoneName(hr)  { return ZONE_NAME[_zone(hr)]; }
 
   // ── Per-run stacked segments (from raw activities) ──
-  const runG = chartG.append("g").attr("class", "zt-runs");
+  const runG = chartG.append("g").attr("class", "zt-runs")
+    .style("display", APP_STATE.ztShowBars === false ? "none" : "");
 
   const selWeekLocal = APP_STATE.selectedWeekIdx != null ? APP_STATE.selectedWeekIdx - weekStart : null;
 
@@ -488,10 +520,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .attr("fill", "transparent")
       .style("cursor", ph && ph.type === "Active" ? "pointer" : "default")
       .on("mouseover", (event) => showTooltip(tooltip, event, tooltipHTML))
-      .on("mousemove", (event) => {
-        tooltip.style("left", (event.pageX + 12) + "px")
-               .style("top",  (event.pageY - 28) + "px");
-      })
+      .on("mousemove", (event) => moveTooltip(tooltip, event))
       .on("mouseout", () => hideTooltip(tooltip))
       .on("click", () => {
         if (APP_STATE.selectedWeekIdx === weekStart + i) {
@@ -826,6 +855,106 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .style("font-weight", "700")
       .style("fill", "#374151")
       .text(label);
+  });
+
+  // ─────────────────────────────────────────
+  // ROW 4 — Phase legend
+  // ─────────────────────────────────────────
+  const legendG = root.append("g")
+    .attr("transform", `translate(0,${STRIP_H + CHART_H + WEEK_LABEL_H})`);
+
+  const PHASE_DESCRIPTIONS = {
+    "Building":   "Volume is growing week over week. The body is adapting to increasing load — a preparation stage before peak training.",
+    "Peak":       "Highest training load of the cycle. Volume is at maximum and stable. Typically the hardest period before a race.",
+    "Base":       "Steady, moderate volume. No clear growth or drop. Maintaining fitness and consistency — the most common phase.",
+    "Recovery":   "Volume is significantly below normal. Usually follows a peak or race, or reflects illness / low motivation.",
+    "Sharpening": "Volume drops while pace improves. Classic pre-race tapering — less km but higher quality. Body is getting sharp.",
+  };
+
+  const usedPhaseNames = new Set(phasesInRange.filter(p => p.type === "Active").map(p => p.name));
+  const hasInactive = phasesInRange.some(p => p.type === "Inactive");
+  const lcy = 30; // items row y
+  let lx = 0;
+
+  // Left header: "phases"
+  legendG.append("text").attr("x", 0).attr("y", 10)
+    .attr("dominant-baseline", "middle")
+    .style("font-size", "10px").style("fill", "#9CA3AF")
+    .style("text-transform", "uppercase").style("letter-spacing", "0.05em")
+    .text("phases");
+
+  if (hasInactive) {
+    const restItemW = 16 + 4 * 7 + 18;
+    const restG = legendG.append("g").style("cursor", "default")
+      .on("mouseover", (event) => showTooltip(tooltip, event,
+        `<div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:6px">Rest</div>
+         <div style="color:#9CA3AF;font-size:12px;line-height:1.6;max-width:200px">No running activity for 10+ days. Gap between training blocks.</div>`))
+      .on("mousemove", (event) => moveTooltip(tooltip, event))
+      .on("mouseout", () => hideTooltip(tooltip));
+    restG.append("circle").attr("cx", lx + 6).attr("cy", lcy).attr("r", 6)
+      .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
+    restG.append("text").attr("x", lx + 16).attr("y", lcy)
+      .attr("dominant-baseline", "middle")
+      .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+      .text("Rest");
+    restG.append("rect").attr("x", lx).attr("y", lcy - 10)
+      .attr("width", restItemW).attr("height", 20).attr("fill", "transparent");
+    lx += restItemW;
+  }
+
+  PHASE_SCALE.filter(p => usedPhaseNames.has(p.name)).forEach(p => {
+    const itemW = 16 + p.label.length * 7 + 18;
+    const itemG = legendG.append("g").style("cursor", "default")
+      .on("mouseover", (event) => showTooltip(tooltip, event,
+        `<div style="font-weight:700;font-size:14px;color:${p.bg};margin-bottom:6px">${p.label}</div>
+         <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:220px">${PHASE_DESCRIPTIONS[p.name] ?? ""}</div>`))
+      .on("mousemove", (event) => moveTooltip(tooltip, event))
+      .on("mouseout", () => hideTooltip(tooltip));
+    itemG.append("circle").attr("cx", lx + 6).attr("cy", lcy).attr("r", 6)
+      .attr("fill", p.bg).attr("opacity", 0.9);
+    itemG.append("text").attr("x", lx + 16).attr("y", lcy)
+      .attr("dominant-baseline", "middle")
+      .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+      .text(p.label);
+    itemG.append("rect").attr("x", lx).attr("y", lcy - 10)
+      .attr("width", itemW).attr("height", 20).attr("fill", "transparent");
+    lx += itemW;
+  });
+
+  // Right header: "run intensity"
+  legendG.append("text").attr("x", innerW).attr("y", 10)
+    .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+    .style("font-size", "10px").style("fill", "#9CA3AF")
+    .style("text-transform", "uppercase").style("letter-spacing", "0.05em")
+    .text("run intensity");
+
+  // HR zone swatches — right-aligned
+  const ZONE_ITEMS = [
+    { color: "#93C5E8", label: "easy run",     tip: "Average HR below 75% of estimated max. Comfortable aerobic effort." },
+    { color: "#f8e19a", label: "moderate run",  tip: "Average HR 75–88% of estimated max. Steady effort, aerobic threshold zone." },
+    { color: "#f7aaaa", label: "hard run",      tip: "Average HR above 88% of estimated max. High intensity, race-pace or interval effort." },
+  ];
+  let rx = innerW;
+  [...ZONE_ITEMS].reverse().forEach(z => {
+    const itemW = 10 + z.label.length * 6.5 + 16;
+    rx -= itemW;
+    const zG = legendG.append("g").style("cursor", "default")
+      .on("mouseover", (event) => showTooltip(tooltip, event,
+        `<div style="font-weight:700;font-size:13px;color:${z.color};margin-bottom:5px">${z.label}</div>
+         <div style="color:#6B7280;font-size:12px;line-height:1.5;max-width:210px">${z.tip}</div>`))
+      .on("mousemove", (event) => moveTooltip(tooltip, event))
+      .on("mouseout", () => hideTooltip(tooltip));
+    zG.append("rect")
+      .attr("x", rx).attr("y", lcy - 5)
+      .attr("width", 10).attr("height", 10).attr("rx", 2)
+      .attr("fill", z.color);
+    zG.append("text")
+      .attr("x", rx + 14).attr("y", lcy)
+      .attr("dominant-baseline", "middle")
+      .style("font-size", "11px").style("fill", "#6B7280")
+      .text(z.label);
+    zG.append("rect").attr("x", rx).attr("y", lcy - 10)
+      .attr("width", itemW).attr("height", 20).attr("fill", "transparent");
   });
 
   // ── Day ticks + numbers (row 1) ──

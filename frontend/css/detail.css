@@ -65,6 +65,17 @@
   border-color: #1F2937;
 }
 
+.zt-no-data-warn {
+  background: #FEF3C7 !important;
+  color: #D97706 !important;
+  margin-left: 3px;
+  top: -1px;
+}
+.zt-no-data-warn:hover {
+  background: #FDE68A !important;
+  color: #B45309 !important;
+}
+
 .zt-toggle-sep {
   width: 1px;
   height: 20px;
@@ -410,21 +421,21 @@
 
 .wd-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 20px;
 }
 
-.wd-header-top {
+.wd-header-left {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 
-.wd-header-top .wd-label {
-  align-self: center;
+.wd-section-label {
+  margin: 0 0 6px 0;
 }
 
 .wd-label {
@@ -432,7 +443,9 @@
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.02em;
+  width: 100%;
   text-align: center;
+  margin-bottom: 10px;
 }
 
 .wd-summary {
@@ -832,6 +845,72 @@
   display: block;
   height: 24px;
   margin-bottom: 10px;
+}
+
+.wd-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 16px;
+  margin-bottom: 24px;
+  padding: 10px 14px;
+  background: #F9FAFB;
+  border-radius: 8px;
+  gap: 24px;
+}
+
+.wd-legend-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wd-legend-group--right {
+  align-items: flex-end;
+}
+
+.wd-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.wd-legend-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.wd-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #6B7280;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.wd-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wd-legend-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .wd-day-head {
