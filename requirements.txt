@@ -4,3 +4,4 @@ ruptures
 scikit-learn
 stravalib
 flask
+gunicorn
