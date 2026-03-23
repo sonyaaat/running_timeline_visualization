@@ -1,12 +1,12 @@
 import APP_STATE from './state.js';
 
 export async function loadData() {
-  const response = await fetch("data/phases.json");
-  if (!response.ok) throw new Error(`Failed to load phases.json: ${response.status}`);
+  const response = await fetch("/api/data");
+  if (!response.ok) throw new Error(`Failed to load data: ${response.status}`);
   const data = await response.json();
 
   if (!data.phases || !data.weekly || !data.breakpoints || !data.meta) {
-    throw new Error("phases.json is missing required fields");
+    throw new Error("data is missing required fields");
   }
 
   console.log(`[data] Loaded ${data.phases.length} phases, ${data.weekly.length} weeks`);
@@ -19,7 +19,7 @@ export async function loadData() {
   APP_STATE.meta        = data.meta;
 
   try {
-    const actRes = await fetch("data/activities.json");
+    const actRes = await fetch("/api/activities");
     APP_STATE.activities = actRes.ok ? await actRes.json() : [];
   } catch (_) {
     APP_STATE.activities = [];

@@ -247,3 +247,98 @@ code {
   padding: 1px 4px;
   border-radius: 3px;
 }
+
+/* User section — fixed top right */
+#user-section {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 200;
+}
+
+#user-name {
+  font-size: 13px;
+  color: #6B7280;
+}
+
+#btn-logout {
+  font-size: 12px;
+  color: #6B7280;
+  background: none;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+#btn-logout:hover {
+  border-color: #9CA3AF;
+  color: #374151;
+}
+
+/* Logout modal */
+#logout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#logout-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  text-align: center;
+  min-width: 260px;
+}
+
+#logout-modal p {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 20px;
+}
+
+#logout-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+#logout-cancel {
+  padding: 8px 20px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#logout-cancel:hover {
+  background: #F3F4F6;
+}
+
+#logout-confirm {
+  padding: 8px 20px;
+  border-radius: 8px;
+  background: #EF4444;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+#logout-confirm:hover {
+  background: #DC2626;
+}

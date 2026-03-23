@@ -1,6 +1,5 @@
 import os
 import json
-import shutil
 import sys
 import pandas as pd
 import numpy as np
@@ -11,7 +10,7 @@ from backend.gaps import find_inactive_gaps, gaps_to_week_indices
 from backend.segments import split_into_segments
 from backend.detection import detect_on_segment
 from backend.labels import label_phase, get_color, compute_stats
-from backend.config import INACTIVE_GAP_DAYS, MIN_PHASE_WEEKS, PELT_PENALTY, OUTPUT_PATH, FRONTEND_DATA_PATH, MIN_MERGE_WEEKS
+from backend.config import INACTIVE_GAP_DAYS, MIN_PHASE_WEEKS, PELT_PENALTY, MIN_MERGE_WEEKS
 
 def _week_to_date(week_val, start: bool = True) -> str:
     """Extract start or end date from a week Period or string like '2024-07-08/2024-07-14'."""
@@ -126,17 +125,27 @@ def build_breakpoint(prev: dict, curr: dict) -> dict:
         "changes":    changes_dict,
     }
 
-def run_pipeline(force_refresh: bool = False) -> dict:
+def run_pipeline(force_refresh: bool = False, data_dir: str = None, activities: list = None) -> dict:
     """
-    force_refresh=True  → delete cache and re-fetch from Strava
-    force_refresh=False → use existing raw_activities.json if it exists
+    activities  → list of activity dicts passed directly (multi-user OAuth flow)
+    data_dir    → directory to read/write user data (defaults to project data/)
+    force_refresh → delete cache and re-fetch (only used in legacy single-user mode)
     """
     # 1. STRAVA FETCH
     log_section("STRAVA FETCH")
-    raw_path = os.path.join(os.path.dirname(__file__), "..", "data", "raw_activities.json")
-    if force_refresh and os.path.exists(raw_path):
+    if data_dir is None:
+        data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+    os.makedirs(data_dir, exist_ok=True)
+    raw_path = os.path.join(data_dir, "raw_activities.json")
+
+    if activities is not None:
+        # Save provided activities to data_dir
+        with open(raw_path, "w", encoding="utf8") as f:
+            json.dump(activities, f, ensure_ascii=False, indent=2)
+    elif force_refresh and os.path.exists(raw_path):
         os.remove(raw_path)
         print("[pipeline] Cache cleared — will re-fetch from Strava")
+
     if os.path.exists(raw_path):
         with open(raw_path, encoding="utf8") as f:
             activities = json.load(f)
@@ -267,18 +276,9 @@ def run_pipeline(force_refresh: bool = False) -> dict:
         }
     }
     output = clean_nan(output)
-    root = os.path.join(os.path.dirname(__file__), "..")
-    out_path = os.path.join(root, OUTPUT_PATH)
+    out_path = os.path.join(data_dir, "phases.json")
     with open(out_path, "w", encoding="utf8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
-    frontend_path = os.path.join(root, FRONTEND_DATA_PATH)
-    os.makedirs(os.path.dirname(frontend_path), exist_ok=True)
-    shutil.copy(out_path, frontend_path)
-    # Also copy raw activities to frontend/data for static serving
-    activities_src = os.path.join(root, "data", "raw_activities.json")
-    activities_dst = os.path.join(root, "frontend", "data", "activities.json")
-    if os.path.exists(activities_src):
-        shutil.copy(activities_src, activities_dst)
     # Final summary
     log("[pipeline] ══════════════════════════════")
     log(f"[pipeline] ✓ {len(weekly)} weeks analyzed")
@@ -288,7 +288,7 @@ def run_pipeline(force_refresh: bool = False) -> dict:
             log(f"[pipeline]   ○ Inactive {phase['week_end']-phase['week_start']+1}w  ({phase.get('days','')} days)")
         else:
             log(f"[pipeline]   ● {phase['name']:<25} {phase['week_end']-phase['week_start']+1}w")
-    log(f"[pipeline] ✓ Saved to {OUTPUT_PATH} and copied to {FRONTEND_DATA_PATH}")
+    log(f"[pipeline] ✓ Saved to {out_path}")
     return output
 
 if __name__ == "__main__":
