@@ -85,20 +85,7 @@
 }
 
 .zt-dist-btn {
-  border-color: #E5E7EB;
-  color: #9CA3AF;
-}
-
-.zt-dist-btn.active {
-  background: #F0FDF4;
-  color: #16A34A;
-  border-color: #BBF7D0;
-}
-
-.zt-dist-btn:hover {
-  border-color: #16A34A;
-  color: #16A34A;
-  background: #F0FDF4;
+  color: #111827;
 }
 
 /* ── Transition detail popover ── */

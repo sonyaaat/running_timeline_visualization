@@ -411,7 +411,7 @@ function renderSplitsChart(el, laps) {
     const hrHtml = hasHR
       ? `<td class="wd-split-hr">${l.hr != null ? Math.round(l.hr) : "—"}</td>` : "";
 
-    return `<tr class="wd-split-row">
+    return `<tr class="wd-split-row" data-tip-pace="${fmtPace(p)}">
       <td class="wd-split-km">${kmLabel}</td>
       <td class="wd-split-pace" style="color:${isFaster ? "#15803D" : isSlower ? "#DC2626" : "#111827"}">${fmtPace(p)}</td>
       <td class="wd-split-bar-cell">
@@ -590,7 +590,7 @@ function renderSplitsChart(el, laps) {
     const zoneRows = activeZones.map(z => {
       const pct = z.km / totalKmWithHR * 100;
       const extraMargin = (z.name === "Threshold" || z.name === "Hard") ? ' style="margin-top:14px"' : '';
-      return `<div class="wd-zone-row"${extraMargin}>
+      return `<div class="wd-zone-row"${extraMargin} data-tip-zone="${z.name}|${z.km.toFixed(1)}|${pct.toFixed(0)}">
         <div class="wd-zone-row-name">
           <span class="wd-effort-dot wd-zone-dot-tip" style="background:${z.color}" data-tip="${z.desc}"></span>
           <span style="font-size:13px;font-weight:700;color:#111827">${z.name}</span>
@@ -644,7 +644,7 @@ function renderSplitsChart(el, laps) {
       const color  = isGood ? "#22C55E" : isBad ? "#EF4444" : "#94A3B8";
       const side   = isGood ? "right" : "left";
       const kmLabel = l.distance < 950 ? `${(l.distance/1000).toFixed(1)}` : String(l.index);
-      return `<tr class="wd-split-row">
+      return `<tr class="wd-split-row" data-tip-eff="${match.eff.toFixed(2)}">
         <td class="wd-split-km">${kmLabel}</td>
         <td class="wd-split-pace" style="color:${isGood?"#15803D":isBad?"#DC2626":"#111827"};font-size:12px">${match.eff.toFixed(2)}</td>
         <td class="wd-split-bar-cell">
@@ -737,5 +737,55 @@ function renderSplitsChart(el, laps) {
       btn.classList.add("wd-tab-btn--active");
       el.querySelector(`[data-panel="${btn.dataset.tab}"]`).style.display = "block";
     });
+  });
+
+  // ── Pace bar hover tooltip ──
+  document.querySelectorAll(".wd-splits-bar-tip").forEach(t => t.remove());
+  const barTip = document.createElement("div");
+  barTip.className = "tooltip wd-splits-bar-tip";
+  barTip.style.cssText = "display:none;position:absolute;z-index:9999;pointer-events:none;padding:8px 12px;";
+  document.body.appendChild(barTip);
+
+  el.querySelectorAll(".wd-split-row[data-tip-pace]").forEach(row => {
+    row.addEventListener("mouseenter", e => {
+      barTip.innerHTML = `<b>${row.dataset.tipPace}/km</b>`;
+      barTip.style.display = "block";
+      barTip.style.left = (e.pageX + 12) + "px";
+      barTip.style.top  = (e.pageY - 28) + "px";
+    });
+    row.addEventListener("mousemove", e => {
+      barTip.style.left = (e.pageX + 12) + "px";
+      barTip.style.top  = (e.pageY - 28) + "px";
+    });
+    row.addEventListener("mouseleave", () => { barTip.style.display = "none"; });
+  });
+
+  el.querySelectorAll(".wd-zone-row[data-tip-zone]").forEach(row => {
+    row.addEventListener("mouseenter", e => {
+      const [name, km, pct] = row.dataset.tipZone.split("|");
+      barTip.innerHTML = `<b>${name}</b>: ${km} km (${pct}%)`;
+      barTip.style.display = "block";
+      barTip.style.left = (e.pageX + 12) + "px";
+      barTip.style.top  = (e.pageY - 28) + "px";
+    });
+    row.addEventListener("mousemove", e => {
+      barTip.style.left = (e.pageX + 12) + "px";
+      barTip.style.top  = (e.pageY - 28) + "px";
+    });
+    row.addEventListener("mouseleave", () => { barTip.style.display = "none"; });
+  });
+
+  el.querySelectorAll(".wd-split-row[data-tip-eff]").forEach(row => {
+    row.addEventListener("mouseenter", e => {
+      barTip.innerHTML = `<b>${row.dataset.tipEff}</b>`;
+      barTip.style.display = "block";
+      barTip.style.left = (e.pageX + 12) + "px";
+      barTip.style.top  = (e.pageY - 28) + "px";
+    });
+    row.addEventListener("mousemove", e => {
+      barTip.style.left = (e.pageX + 12) + "px";
+      barTip.style.top  = (e.pageY - 28) + "px";
+    });
+    row.addEventListener("mouseleave", () => { barTip.style.display = "none"; });
   });
 }
