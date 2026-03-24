@@ -535,15 +535,17 @@ function renderSplitsChart(el, laps) {
 
     hrDeviationHtml = `
       <div class="wd-section-block">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding-left:5.9%;padding-right:12.4%;margin-bottom:10px">
-          <div class="wd-hr-heading">
+        <div style="padding-left:5.9%;padding-right:12.4%;margin-bottom:10px">
+          <div class="wd-panel-heading">
             <span class="wd-hr-heading-title">Heart rate per km</span>
-            <span class="wd-trend-hint" data-tip="HR in each km.&#10;Colored bands = training zones.&#10;Rising HR over time = cardiac drift (fatigue).">?</span>
+            <p class="wd-panel-desc">Your heart rate for each km. Colored bands show training zones. Rising HR over time = cardiac drift (accumulating fatigue).</p>
           </div>
-          <div class="wd-splits-summary" style="margin:0">
-            <div class="wd-splits-stat"><span>avg</span><b>${Math.round(avgHR)} bpm</b></div>
-            <div class="wd-splits-stat"><span>min</span><b style="color:#15803D">${Math.round(minHR)} bpm</b></div>
-            <div class="wd-splits-stat"><span>max</span><b style="color:#DC2626">${Math.round(maxHR)} bpm</b></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <div class="wd-splits-summary" style="margin:0">
+              <div class="wd-splits-stat"><span>avg</span><b>${Math.round(avgHR)} bpm</b></div>
+              <div class="wd-splits-stat"><span>min</span><b style="color:#15803D">${Math.round(minHR)} bpm</b></div>
+              <div class="wd-splits-stat"><span>max</span><b style="color:#DC2626">${Math.round(maxHR)} bpm</b></div>
+            </div>
           </div>
         </div>
         <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;margin-bottom:8px;overflow:visible">
@@ -612,9 +614,9 @@ function renderSplitsChart(el, laps) {
 
     effortHtml = `
       <div class="wd-section-block">
-        <div class="wd-hr-heading" style="margin-bottom:14px;margin-top:10px">
+        <div class="wd-panel-heading" style="margin-bottom:14px;margin-top:10px">
           <span class="wd-hr-heading-title">Training zones</span>
-          <span class="wd-trend-hint" data-tip="How much of the run you spent&#10;in each HR intensity zone.&#10;Based on heart rate per km.">?</span>
+          <p class="wd-panel-desc">How much of this run you spent in each heart rate intensity zone. Based on HR measured per km.</p>
         </div>
         <div class="wd-zones-summary-bar">${stackedSegments}</div>
         <div class="wd-zones-dominant">
@@ -657,9 +659,9 @@ function renderSplitsChart(el, laps) {
     }).filter(Boolean).join("");
     efficiencyHtml = `
       <div class="wd-section-block">
-        <div class="wd-hr-heading" style="margin-bottom:10px;margin-top:0">
+        <div class="wd-panel-heading" style="margin-bottom:12px;margin-top:0">
           <span class="wd-hr-heading-title">Efficiency per km</span>
-          <span class="wd-trend-hint" data-tip="Speed divided by heart rate.&#10;Higher = faster with less effort.&#10;Green = more efficient than your avg.&#10;Red = working harder than usual.">?</span>
+          <p class="wd-panel-desc">Speed divided by heart rate — higher means faster with less effort. Green = more efficient than your average. Red = working harder than usual.</p>
         </div>
         <table class="wd-splits-table">
           <thead><tr>
@@ -674,9 +676,9 @@ function renderSplitsChart(el, laps) {
 
   // ── Assemble tab content panels ──
   const pacePanelHtml = `
-    <div class="wd-hr-heading" style="margin-bottom:10px">
+    <div class="wd-panel-heading" style="margin-bottom:12px">
       <span class="wd-hr-heading-title">Pace per km</span>
-      <span class="wd-trend-hint" data-tip="Pace for each km.&#10;Green = faster than avg.&#10;Red = slower than avg.">?</span>
+      <p class="wd-panel-desc">Pace for each km split. Green = faster than your average. Red = slower than your average.</p>
     </div>
     <table class="wd-splits-table">
       <thead><tr>

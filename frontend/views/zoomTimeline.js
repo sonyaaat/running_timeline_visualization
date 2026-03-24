@@ -228,10 +228,20 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   const activeInRange   = phasesInRange.filter(p => p.type === "Active");
   const inactiveInRange = phasesInRange.filter(p => p.type === "Inactive");
 
-  // Map phase_id → breakpoint that starts it (to_id === phase.id)
-  // Use all known breakpoints so phases at the edge of the view still get deltas
-  const bpByToPhase = {};
-  (APP_STATE.breakpoints || bpInRange).forEach(bp => { bpByToPhase[bp.to_id] = bp; });
+  // Build prev-active-phase lookup directly from phase stats (more reliable than breakpoints)
+  const allActivePhases = (APP_STATE.phases || phasesInRange)
+    .filter(p => p.type === "Active")
+    .sort((a, b) => a.week_start - b.week_start);
+  const prevActivePhase = {};
+  allActivePhases.forEach((p, i) => {
+    if (i > 0) prevActivePhase[p.id] = allActivePhases[i - 1];
+  });
+
+  function pctChange(a, b, bigger = true) {
+    if (a == null || b == null || a === 0) return null;
+    const d = (b - a) / Math.abs(a) * 100;
+    return bigger ? d : -d;
+  }
 
   function drawStripSeg(phase) {
     const px1 = x(Math.max(phase.week_start, weekStart));
@@ -252,10 +262,10 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         .style("pointer-events", "none");
     }
 
-    // Background — inactive phases only fill the top zone with stripes
+    // Background — hover/click only on top zone (phase name area)
     segG.append("rect")
       .attr("x", px1).attr("y", 0)
-      .attr("width", bw).attr("height", isInactive ? STRIP_DIVIDER : STRIP_H)
+      .attr("width", bw).attr("height", STRIP_DIVIDER)
       .attr("fill", isInactive ? "url(#zt-inactive-stripe)" : phaseColor(phase.name))
       .attr("opacity", opacity * (isInactive ? 1 : 0.38))
       .style("cursor", isInactive ? "default" : "pointer")
@@ -285,6 +295,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .on("mouseout", () => hideTooltip(tooltip))
       .on("click", () => { if (!isInactive) handlePhaseClick(phase, weekStart, weekEnd); });
 
+
     // Selected outline
     if (sel === phase.id && !isInactive) {
       segG.append("rect")
@@ -309,24 +320,23 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       const hasSubtitle = bw >= 80 && phase.stats;
       const nameLabel   = bw >= 100 ? phase.name : phase.name.split(" / ")[0];
 
-      // Build changes from breakpoint that transitions INTO this phase
-      const incomingBp = bpByToPhase[phase.id];
-      const ch = incomingBp?.changes || {};
-      const allPhases = APP_STATE.phases || phasesInRange;
-      const fromPhaseForHR = incomingBp ? allPhases.find(p => p.id === incomingBp.from_id) : null;
-      const fromHR = fromPhaseForHR ? phaseAvgHR(fromPhaseForHR) : null;
+      // Compute changes vs previous active phase directly from stats
+      const prevPhase = prevActivePhase[phase.id];
+      const cs  = phase.stats    || {};
+      const ps  = prevPhase?.stats || {};
+      const fromHR = prevPhase ? phaseAvgHR(prevPhase) : null;
       const toHR   = phaseAvgHR(phase);
       const hrPct  = fromHR && toHR ? ((toHR - fromHR) / fromHR) * 100 : null;
 
       // Choose which metrics to show based on active tab
       const activeTab = APP_STATE.ztLineMetric; // null | "pace" | "hr" | "efficiency"
       const allCandidates = [
-        { key: "km/wk",   pct: ch.km_per_week,   bigger: true  },
-        { key: "pace",    pct: ch.avg_pace,        bigger: false },
-        { key: "avg run", pct: ch.avg_run_km,      bigger: true  },
-        { key: "HR",      pct: hrPct,              bigger: false },
-        { key: "runs/wk", pct: ch.runs_per_week,   bigger: true  },
-        { key: "effic",   pct: ch.efficiency,      bigger: true  },
+        { key: "km/wk",   pct: pctChange(ps.km_per_week,   cs.km_per_week),   bigger: true  },
+        { key: "pace",    pct: pctChange(ps.avg_pace,       cs.avg_pace, false), bigger: false },
+        { key: "avg run", pct: pctChange(ps.avg_run_km,     cs.avg_run_km),    bigger: true  },
+        { key: "HR",      pct: hrPct,                                           bigger: false },
+        { key: "runs/wk", pct: pctChange(ps.runs_per_week,  cs.runs_per_week), bigger: true  },
+        { key: "effic",   pct: pctChange(ps.efficiency,     cs.efficiency),    bigger: true  },
       ];
       const tabKeys = !activeTab            ? ["km/wk", "avg run", "runs/wk"]
                     : activeTab === "pace"  ? ["pace", "km/wk"]
@@ -336,10 +346,10 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       const changeMetrics = allCandidates
         .filter(m => tabKeys.includes(m.key) && m.pct != null && Math.abs(m.pct) >= 2);
 
-      const hasChanges = bw >= 130 && changeMetrics.length > 0;
+      const hasChanges = bw >= 80 && changeMetrics.length > 0;
 
       // White badge zone background (always draw for active phases wide enough)
-      if (!isInactive && bw >= 130) {
+      if (!isInactive && bw >= 80) {
         segG.append("rect")
           .attr("x", px1).attr("y", STRIP_DIVIDER)
           .attr("width", bw).attr("height", STRIP_H - STRIP_DIVIDER)
@@ -347,8 +357,8 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
           .style("pointer-events", "none");
       }
 
-      // Name + subtitle: in colored top zone when badge zone present, else full strip center
-      const topCenter = bw >= 130 ? STRIP_DIVIDER / 2 : STRIP_H / 2;
+      // Name + subtitle: always centered in the colored top zone
+      const topCenter = STRIP_DIVIDER / 2;
       const nameY = hasSubtitle ? topCenter - 10 : topCenter;
       const subY  = topCenter + 10;
 
@@ -372,7 +382,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
           .text(`${phase.duration_weeks}w · ${s.km_per_week?.toFixed(0) ?? "?"} km/wk`);
       }
 
-      if (!hasChanges && bw >= 130 && incomingBp) {
+      if (!hasChanges && bw >= 80 && prevPhase) {
         // No significant changes — show a short neutral note
         const noChangeLabel = !activeTab           ? "volume unchanged"
                             : activeTab === "pace" ? "pace unchanged"
@@ -389,8 +399,14 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       }
 
       if (hasChanges) {
-        // Stack badges vertically in white zone, centered
-        const BADGE_H = 20, PAD_X = 10, GAP = 8;
+        // Adaptive sizing based on available width
+        const isCompact = bw < 130;
+        const BADGE_H   = isCompact ? 14 : 20;
+        const PAD_X     = isCompact ? 5  : 10;
+        const GAP       = isCompact ? 4  : 8;
+        const FONT      = isCompact ? 9  : 12;
+        const CHAR_W    = isCompact ? 5.5 : 7.0;
+
         const n = changeMetrics.length;
         const totalStackH = n * BADGE_H + (n - 1) * GAP;
         const zoneH = STRIP_H - STRIP_DIVIDER;
@@ -406,21 +422,27 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
           const textColor = isGood ? "#15803D" : "#DC2626";
           const arrow     = m.pct > 0 ? "↑" : "↓";
           const sign      = m.pct > 0 ? "+" : "";
-          const label     = `${arrow} ${m.key}  ${sign}${Math.round(m.pct)}%`;
-          const approxW   = Math.min(bw - 20, label.length * 7.0 + PAD_X * 2);
+          // Compact mode: shorter key labels
+          const keyShort  = isCompact
+            ? { "km/wk": "km", "avg run": "run", "runs/wk": "runs", "pace": "pace", "HR": "HR", "effic": "eff" }[m.key] ?? m.key
+            : m.key;
+          const label     = isCompact
+            ? `${arrow}${keyShort} ${sign}${Math.round(m.pct)}%`
+            : `${arrow} ${m.key}  ${sign}${Math.round(m.pct)}%`;
+          const approxW   = Math.min(bw - 10, label.length * CHAR_W + PAD_X * 2);
           const by        = startY + idx * (BADGE_H + GAP);
           const bx        = cx - approxW / 2;
 
           badgeG.append("rect")
             .attr("x", bx).attr("y", by - BADGE_H / 2)
             .attr("width", approxW).attr("height", BADGE_H)
-            .attr("rx", 8)
+            .attr("rx", isCompact ? 5 : 8)
             .attr("fill", bgColor).attr("opacity", opacity);
 
           badgeG.append("text")
             .attr("x", cx).attr("y", by)
             .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-            .style("font-size", "12px").style("font-weight", "700")
+            .style("font-size", `${FONT}px`).style("font-weight", "700")
             .attr("fill", textColor).attr("opacity", opacity)
             .text(label);
         });
@@ -1119,75 +1141,7 @@ function phaseAvgHR(phase) {
   return relevant.reduce((s, a) => s + a.average_heartrate, 0) / relevant.length;
 }
 
-function buildTransitionHTML(bp, fromPhase, toPhase) {
-  const fromTC = phaseTextColor(fromPhase.name);
-  const toTC   = phaseTextColor(toPhase.name);
-  const ts = toPhase.stats   || {};
-  const ch = bp.changes      || {};
 
-  const fromHR = phaseAvgHR(fromPhase);
-  const toHR   = phaseAvgHR(toPhase);
-  const hrPct  = fromHR && toHR ? ((toHR - fromHR) / fromHR) * 100 : null;
-
-  const fromWeeks = fromPhase.week_end - fromPhase.week_start + 1;
-  const toWeeks   = toPhase.week_end   - toPhase.week_start   + 1;
-
-  const cards = [
-    { label: "km/week",    pct: ch.km_per_week,    bigger: true,  val: ts.km_per_week  != null ? `${ts.km_per_week.toFixed(0)} km`  : null },
-    { label: "pace",       pct: ch.avg_pace,        bigger: false, val: formatPace(ts.avg_pace) },
-    { label: "avg run",    pct: ch.avg_run_km,      bigger: true,  val: ts.avg_run_km   != null ? `${ts.avg_run_km.toFixed(1)} km`   : null, skip: ch.avg_run_km == null },
-    { label: "HR",         pct: hrPct,              bigger: false, val: toHR != null ? `${Math.round(toHR)} bpm` : null, skip: hrPct == null },
-    { label: "runs/wk",   pct: ch.runs_per_week,   bigger: true,  val: ts.runs_per_week != null ? `${ts.runs_per_week.toFixed(1)}`  : null },
-    { label: "efficiency", pct: ch.efficiency,      bigger: true,  val: ts.efficiency   != null ? `${(ts.efficiency * 1000).toFixed(1)}` : null, skip: true },
-  ].filter(c => !c.skip && c.pct != null && Math.abs(c.pct) >= 2);
-
-  const cardHTML = cards.map(c => {
-    const isGood   = c.bigger ? c.pct > 0 : c.pct < 0;
-    const pctColor = isGood ? "#16A34A" : "#DC2626";
-    const sign     = c.pct > 0 ? "+" : "";
-    const pctText  = `${sign}${Math.round(c.pct)}%`;
-    return `
-      <div class="bpd-card">
-        <div class="bpd-card-label">${c.label}</div>
-        <div class="bpd-card-pct" style="color:${pctColor}">${pctText}</div>
-        ${c.val ? `<div class="bpd-card-val">${c.val}</div>` : ""}
-      </div>`;
-  }).join("");
-
-  return `
-    <div class="bpd-header">
-      <span class="bpd-phase-name" style="color:${fromTC}">${fromPhase.name}</span><span class="bpd-dur"> ${fromWeeks}w</span>
-      <span class="bpd-arrow"> → </span>
-      <span class="bpd-phase-name" style="color:${toTC}">${toPhase.name}</span><span class="bpd-dur"> ${toWeeks}w</span>
-    </div>
-    <div class="bpd-grid">${cardHTML}</div>`;
-}
-
-function showTransitionPopover(bp, fromPhase, toPhase, event) {
-  let pop = document.getElementById("bp-popover");
-  if (!pop) {
-    pop = document.createElement("div");
-    pop.id = "bp-popover";
-    document.body.appendChild(pop);
-  }
-  pop.innerHTML = buildTransitionHTML(bp, fromPhase, toPhase);
-
-  const pw = 360;
-  pop.style.display = "block";
-
-  const ph = pop.offsetHeight || 200;
-  const { clientX: mx, clientY: my } = event;
-  const left = Math.min(mx - pw / 2, window.innerWidth - pw - 12);
-  const top  = my - ph - 16;   // above the cursor
-
-  pop.style.left = `${Math.max(8, left)}px`;
-  pop.style.top  = `${Math.max(8, top)}px`;
-}
-
-function hideTransitionPopover() {
-  const pop = document.getElementById("bp-popover");
-  if (pop) pop.style.display = "none";
-}
 
 // ─────────────────────────────────────────────────────────
 // Helpers

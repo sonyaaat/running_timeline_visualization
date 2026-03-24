@@ -1241,11 +1241,25 @@
   gap: 6px;
 }
 
+.wd-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .wd-hr-heading-title {
-  font-size: 15px;
+  font-size: 28px;
   font-weight: 800;
   color: #111827;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+}
+
+.wd-panel-desc {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  color: #6B7280;
+  line-height: 1.6;
 }
 
 /* HR sparkline point tooltips */
