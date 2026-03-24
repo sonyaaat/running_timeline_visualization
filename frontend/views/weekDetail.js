@@ -584,7 +584,7 @@ function renderSplitsChart(el, laps) {
       const pct = (z.km / totalKmWithHR * 100).toFixed(1);
       return `<div title="${z.name}: ${z.km.toFixed(1)} km (${pct}%)"
         style="flex:${z.km};background:${z.color};height:100%;display:flex;align-items:center;justify-content:center;min-width:4px">
-        ${parseFloat(pct) >= 10 ? `<span style="font-size:11px;font-weight:700;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.4)">${pct}%</span>` : ""}
+        <span style="font-size:11px;font-weight:700;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.4)">${pct}%</span>
       </div>`;
     }).join("");
 

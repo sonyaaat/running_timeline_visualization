@@ -65,6 +65,31 @@ export function renderDetail(weekStart, weekEnd) {
   console.log("[zoom] Phases:", phasesInRange.map(p => p.name));
   console.log("[zoom] Breakpoints in range:", bpInRange.length);
 
+  // ── Phase narrative cards ──
+  const PHASE_DESCRIPTIONS = {
+    "Building":   "Volume is growing week over week. The body is adapting to increasing load — a preparation stage before peak training.",
+    "Peak":       "Highest training load of the cycle. Volume is at maximum and stable. Typically the hardest period before a race.",
+    "Base":       "Steady, moderate volume. No clear growth or drop. Maintaining fitness and consistency — the most common phase.",
+    "Recovery":   "Volume is significantly below normal. Usually follows a peak or race, or reflects illness / low motivation.",
+    "Sharpening": "Volume drops while pace improves. Classic pre-race tapering — less km but higher quality. Body is getting sharp.",
+  };
+  const narrativeEl = document.getElementById("phase-narrative-block");
+  if (narrativeEl) {
+    const seenNames = new Set();
+    const uniqueActive = phasesInRange
+      .filter(p => p.type === "Active")
+      .filter(p => { if (seenNames.has(p.name)) return false; seenNames.add(p.name); return true; });
+    narrativeEl.innerHTML = uniqueActive.map(p => {
+      const color = phaseColor(p.name);
+      const textColor = phaseTextColor(p.name);
+      const desc = PHASE_DESCRIPTIONS[p.name] ?? "";
+      return `<div class="phase-narrative-card" style="--phase-color:${color}">
+        <div class="phase-narrative-name" style="color:${textColor}">${p.name}</div>
+        ${desc ? `<div class="phase-narrative-desc">${desc}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
   // ── Step 2: Render timeline ──
   if (APP_STATE.ztLineMetric === undefined) APP_STATE.ztLineMetric = null;
   if (APP_STATE.ztShowBars === undefined) APP_STATE.ztShowBars = true;
