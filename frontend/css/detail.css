@@ -38,10 +38,10 @@
   margin-bottom: 2px;
 }
 .zt-toggle-label {
-  font-size: 13px;
-  color: #6B7280;
-  font-weight: 500;
-  margin-right: 4px;
+  font-size: 16px;
+  color: #374151;
+  font-weight: 700;
+  margin-right: 8px;
 }
 .zt-toggle-btn {
   font-size: 13px;
@@ -74,6 +74,27 @@
 .zt-no-data-warn:hover {
   background: #FDE68A !important;
   color: #B45309 !important;
+}
+
+.zt-labels-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  user-select: none;
+}
+.zt-labels-toggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #1F2937;
+  cursor: pointer;
+}
+.zt-labels-toggle:hover {
+  color: #374151;
 }
 
 .zt-toggle-sep {
@@ -504,7 +525,7 @@
   background: white;
   border: 1px solid #F3F4F6;
   border-radius: 10px;
-  padding: 0 0 18px;
+  padding: 10px 0 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -549,6 +570,12 @@
 .wd-zone-accent--inline {
   border-radius: 6px;
   margin: 0 0 8px 0;
+}
+
+/* Zone header inside a run block (multi-run days) */
+.wd-zone-accent--inner {
+  border-radius: 6px;
+  margin: 0 0 10px 0;
 }
 
 .wd-run-block {
@@ -738,12 +765,18 @@
 }
 
 .wd-splits-trend {
-  font-size: 13px;
+  font-size: 16px;
+  font-weight: 700;
   color: #374151;
   display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.wd-trend-sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6B7280;
 }
 
 .wd-trend-hint {
@@ -905,6 +938,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  padding-top: 10px;
   margin-bottom: 8px;
   width: 100%;
   padding: 0 10px;
@@ -933,12 +967,38 @@
 }
 
 .wd-run-name {
-  font-size: 11px;
-  font-weight: 500;
-  color: #6B7280;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
   text-align: center;
-  margin-bottom: 4px;
-  font-style: italic;
+  margin-bottom: 2px;
+}
+
+.wd-start-time {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9CA3AF;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.wd-run-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.wd-zone-chip {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.wd-pace-compare {
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .wd-distance {
@@ -1110,8 +1170,40 @@
   margin-bottom: 6px;
 }
 
+.wd-eff-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #F9FAFB;
+  border-radius: 8px;
+  border-left: 3px solid #E5E7EB;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.5;
+}
+.wd-eff-insight .wd-trend-sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6B7280;
+}
+
+.wd-eff-phase-note {
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  background: #F9FAFB;
+  border-left: 3px solid #E5E7EB;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
 .wd-section-hint {
-  font-size: 12px;
+  font-size: 15px;
   color: #6B7280;
   background: #F9FAFB;
   border-left: 3px solid #E5E7EB;
@@ -1168,16 +1260,36 @@
 }
 
 .wd-zone-row {
-  display: grid;
-  grid-template-columns: 100px 80px 1fr 36px 52px;
-  align-items: center;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.wd-zone-row-name {
+.wd-zone-row-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+}
+
+.wd-zone-row-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.wd-zone-row-desc {
+  font-size: 15px;
+  color: #6B7280;
+  font-weight: 400;
+  padding-left: 19px;
+}
+
+.wd-zone-row-bar-line {
+  display: grid;
+  grid-template-columns: 80px 1fr 36px 52px;
+  align-items: center;
+  gap: 10px;
+  padding-left: 19px;
 }
 
 .wd-zone-row-range {
@@ -1226,7 +1338,8 @@
 }
 
 .wd-zones-dominant {
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 500;
   color: #374151;
   margin-bottom: 48px;
   padding: 8px 12px;
@@ -1260,7 +1373,47 @@
   font-weight: 400;
   color: #6B7280;
   line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+
+.wd-desc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wd-desc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 9px;
+  border-radius: 99px;
+  line-height: 1.6;
+}
+.wd-desc-chip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wd-desc-chip--green  { background: #DCFCE7; color: #166534; }
+.wd-desc-chip--green::before  { background: #16A34A; }
+
+.wd-desc-chip--red    { background: #FEE2E2; color: #991B1B; }
+.wd-desc-chip--red::before    { background: #DC2626; }
+
+.wd-desc-chip--amber  { background: #FEF3C7; color: #92400E; }
+.wd-desc-chip--amber::before  { background: #D97706; }
+
+.wd-desc-chip--muted  { background: #F3F4F6; color: #4B5563; }
+.wd-desc-chip--muted::before  { background: #9CA3AF; }
 
 /* HR sparkline point tooltips */
 .wd-hr-pt .wd-hr-tip { visibility: hidden; }

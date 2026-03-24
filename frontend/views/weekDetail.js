@@ -38,12 +38,12 @@ function buildThresholds(activities) {
 
 // Returns zone name + color for a given average HR
 function hrZone(hr, t) {
-  if (!hr) return { name: "no HR", color: "#9CA3AF" };
-  if (hr < t.hr.easy)      return { name: "easy",      color: "#60A5FA" }; // blue
-  if (hr < t.hr.aerobic)   return { name: "aerobic",   color: "#34D399" }; // green
-  if (hr < t.hr.tempo)     return { name: "tempo",     color: "#FBBF24" }; // yellow
-  if (hr < t.hr.threshold) return { name: "threshold", color: "#F97316" }; // orange
-  return                          { name: "hard",       color: "#EF4444" }; // red
+  if (!hr) return { name: "no HR",    label: "no HR",           color: "#9CA3AF" };
+  if (hr < t.hr.easy)      return { name: "easy",      label: "easy pace",       color: "#60A5FA" };
+  if (hr < t.hr.aerobic)   return { name: "aerobic",   label: "steady base",     color: "#34D399" };
+  if (hr < t.hr.tempo)     return { name: "tempo",     label: "comfortably hard", color: "#FBBF24" };
+  if (hr < t.hr.threshold) return { name: "threshold", label: "pushing hard",    color: "#F97316" };
+  return                          { name: "hard",       label: "all-out effort",  color: "#EF4444" };
 }
 
 // Returns badge label or null
@@ -58,7 +58,7 @@ function runBadge(km, hr, t) {
 export function renderWeekDetail(weekIdx) {
   APP_STATE.selectedWeekIdx = weekIdx;
 
-  const { weekly, phases, activities } = APP_STATE;
+  const { weekly, activities } = APP_STATE;
   const w = weekly[weekIdx];
   if (!w) return;
 
@@ -80,8 +80,6 @@ export function renderWeekDetail(weekIdx) {
 
   console.log(`[weekDetail] ${weekStartStr}–${weekEndStr}: found ${weekActs.length} runs`);
 
-  const phase  = phases.find(p => p.id === w.phase_id);
-
   // Build 7-day array using LOCAL date arithmetic (no toISOString → no UTC shift)
   const [sy, sm, sd] = weekStartStr.split("-").map(Number);
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -93,7 +91,11 @@ export function renderWeekDetail(weekIdx) {
 
   const totalKm    = weekActs.reduce((s, a) => s + a.distance / 1000, 0);
   const thresholds = buildThresholds(activities);
-  const phaseAvgPace = phase?.stats?.avg_pace ?? null;
+
+  const weekRunsWithPace = weekActs.filter(a => a.average_speed > 0);
+  const weekAvgPace = weekRunsWithPace.length > 1
+    ? d3.mean(weekRunsWithPace, a => 1000 / a.average_speed / 60)
+    : null;
 
   // Header label from parsed strings (no timezone dependency)
   const fmtStr = s => {
@@ -125,7 +127,7 @@ export function renderWeekDetail(weekIdx) {
       </div>
     </div>
     <div class="wd-grid">
-      ${days.map((day, di) => renderDayCol(day, di, thresholds, phaseAvgPace)).join("")}
+      ${days.map((day, di) => renderDayCol(day, di, thresholds, weekAvgPace)).join("")}
     </div>
     <div class="wd-legend">
       <div class="wd-legend-group">
@@ -250,7 +252,7 @@ export function renderWeekDetail(weekIdx) {
   });
 }
 
-function renderDayCol(day, dayIndex, t, phaseAvgPace) {
+function renderDayCol(day, dayIndex, t, weekAvgPace) {
   const isWeekend = dayIndex >= 5;
   const isRest    = day.acts.length === 0;
   const dayName   = DAYS[dayIndex];
@@ -269,17 +271,12 @@ function renderDayCol(day, dayIndex, t, phaseAvgPace) {
 
   const primary  = day.acts[0];
   const zone     = hrZone(primary.average_heartrate, t);
-  const multiRun = day.acts.length > 1;
-  const statsHtml = day.acts.map(a => buildRunStats(a, t, phaseAvgPace, multiRun)).join("");
+  const statsHtml = day.acts.map(a => buildRunStats(a, t, weekAvgPace)).join("");
 
   return `
     <div class="wd-day wd-day--run${isWeekend ? " wd-day--weekend" : ""}"
          data-tooltip="${buildTooltipText(day.acts)}"
          style="--zone-col:${zone.color}">
-      ${!multiRun
-        ? `<div class="wd-zone-accent" style="background:${zone.color}">${zone.name ? `<span class="wd-zone-label">${zone.name}</span>` : ""}</div>`
-        : `<div class="wd-zone-accent" style="background:#E5E7EB"></div>`
-      }
       <div class="wd-day-head">
         <span class="wd-weekday">${dayName}</span>
         <span class="wd-datenum">${dateNum}</span>
@@ -288,41 +285,51 @@ function renderDayCol(day, dayIndex, t, phaseAvgPace) {
     </div>`;
 }
 
-function buildRunStats(a, t, phaseAvgPace, multiRun = false) {
+function buildRunStats(a, t, weekAvgPace) {
   const kmVal    = a.distance / 1000;
   const km       = kmVal.toFixed(1);
   const runPace  = a.average_speed > 0 ? 1000 / a.average_speed / 60 : null;
   const pace     = runPace ? formatPace(runPace) : "—";
   const time     = fmtTime(a.moving_time);
-  const runName  = `<div class="wd-run-name">${a.name ?? "none"}</div>`;
-  const hr       = a.average_heartrate ? `<span class="wd-hr">♥ ${Math.round(a.average_heartrate)}</span>` : "";
   const elev     = a.total_elevation_gain > 5 ? `<span class="wd-elev">↑ ${Math.round(a.total_elevation_gain)} m</span>` : "";
+  let timeRange = "";
+  if (a.start_date && a.moving_time) {
+    const [h, m] = a.start_date.slice(11, 16).split(":").map(Number);
+    const startMins = h * 60 + m;
+    const endMins   = startMins + Math.round(a.moving_time / 60);
+    const fmt = mins => `${String(Math.floor(mins / 60) % 24).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+    timeRange = `${fmt(startMins)} → ${fmt(endMins)}`;
+  }
 
   const zone  = hrZone(a.average_heartrate, t);
   const badge = runBadge(kmVal, a.average_heartrate, t);
 
-  let paceArrow = "";
-  if (runPace && phaseAvgPace) {
-    const diff = (runPace - phaseAvgPace) / phaseAvgPace;
-    if (diff < -0.03)      paceArrow = `<span class="wd-pace-arrow wd-pace-faster">↑</span>`;
-    else if (diff > 0.03)  paceArrow = `<span class="wd-pace-arrow wd-pace-slower">↓</span>`;
+  let paceCompare = "";
+  if (runPace && weekAvgPace) {
+    const diff = (runPace - weekAvgPace) / weekAvgPace;
+    const pct  = Math.abs(diff * 100).toFixed(0);
+    if (diff < -0.03)     paceCompare = `<span class="wd-pace-compare wd-pace-faster">${pct}% faster than week avg</span>`;
+    else if (diff > 0.03) paceCompare = `<span class="wd-pace-compare wd-pace-slower">${pct}% slower than week avg</span>`;
   }
 
-  const zoneBar = multiRun
-    ? `<div class="wd-zone-accent wd-zone-accent--inline" style="background:${zone.color}">
-        ${zone.name ? `<span class="wd-zone-label">${zone.name}</span>` : ""}
-       </div>`
-    : (badge ? `<span class="wd-badge" style="background:${zone.color}">${badge}</span>`
-             : `<span class="wd-badge-placeholder"></span>`);
+  const zoneHeader = zone.label
+    ? `<div class="wd-zone-accent wd-zone-accent--inner" style="background:${zone.color}"><span class="wd-zone-label">${zone.label}</span></div>`
+    : "";
+  const typeBadge = badge
+    ? `<span class="wd-badge" style="background:${zone.color}">${badge}</span>`
+    : `<span class="wd-badge-placeholder"></span>`;
 
   const actId = typeof a.id === "number" ? a.id : null;
   return `
     <div class="wd-run-block"${actId ? ` data-activity-id="${actId}"` : ""}>
-      ${zoneBar}
-      ${runName}
+      ${zoneHeader}
+      ${typeBadge}
+      <div class="wd-run-name">${a.name ?? "none"}</div>
+      ${timeRange ? `<div class="wd-start-time">${timeRange}</div>` : ""}
       <div class="wd-distance">${km} km</div>
-      <div class="wd-pace">${pace}${paceArrow}</div>
-      <div class="wd-meta">${time}${hr}${elev}</div>
+      <div class="wd-pace">${pace}</div>
+      <div class="wd-meta">${time}${elev}</div>
+      ${paceCompare ? `<div class="wd-run-footer">${paceCompare}</div>` : ""}
     </div>`;
 }
 
@@ -368,6 +375,15 @@ function renderSplitsChart(el, laps) {
   const avgPace   = d3.mean(fullLaps, l => l.pace);
   const fastestKm = d3.min(fullLaps, l => l.pace);
   const slowestKm = d3.max(fullLaps, l => l.pace);
+  const totalSec  = Math.round(fullLaps.reduce((s, l) => s + l.pace * (l.distance / 1000) * 60, 0));
+  const fmtTotalTime = s => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sc = s % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`
+      : `${m}:${String(sc).padStart(2,"0")}`;
+  };
   const hasHR     = laps.some(l => l.hr != null);
   const hasElev   = laps.some(l => l.elev != null && Math.abs(l.elev) > 0);
 
@@ -376,14 +392,12 @@ function renderSplitsChart(el, laps) {
   const firstHalf  = d3.mean(fullLaps.slice(0, half), l => l.pace);
   const secondHalf = d3.mean(fullLaps.slice(half), l => l.pace);
   const trendDiff  = firstHalf - secondHalf; // positive = got faster (negative split)
-  const splitHint = trendDiff > 0
-    ? "2nd half faster — good pacing"
-    : "1st half faster — pace dropped";
-  const trendHintIcon = Math.abs(trendDiff) < 0.1 ? ""
-    : `<span class="wd-trend-hint" data-tip="${splitHint}">?</span>`;
-  const trendLabel = Math.abs(trendDiff) < 0.1 ? "Even pace"
-    : trendDiff > 0 ? `↑ Negative split <span style="color:#22C55E;font-weight:700">+${Math.round(trendDiff * 60)}s</span>${trendHintIcon}`
-    : `↓ Positive split <span style="color:#EF4444;font-weight:700">${Math.round(trendDiff * 60)}s</span>${trendHintIcon}`;
+  const isEvenPace = Math.abs(trendDiff) < 0.1;
+  const trendLabel = isEvenPace
+    ? `<span>Even pace</span><span class="wd-trend-sub">consistent effort throughout</span>`
+    : trendDiff > 0
+      ? `<span>↑ Negative split <b style="color:#22C55E">+${Math.round(trendDiff * 60)}s/km</b></span><span class="wd-trend-sub">2nd half faster — good pacing</span>`
+      : `<span>↓ Positive split <b style="color:#EF4444">${Math.round(trendDiff * 60)}s/km</b></span><span class="wd-trend-sub">1st half faster — pace dropped</span>`;
 
   // Max deviation for bar scale
   const maxDev = Math.max(...fullLaps.map(l => Math.abs(l.pace - avgPace))) || 0.5;
@@ -499,7 +513,19 @@ function renderSplitsChart(el, laps) {
       </g>`;
     }).join("");
 
-    const valLabels = "";
+    const maxHRIdx = hrData.reduce((bi, l, i) => l.hr > hrData[bi].hr ? i : bi, 0);
+    const minHRIdx = hrData.reduce((bi, l, i) => l.hr < hrData[bi].hr ? i : bi, 0);
+    const valLabels = [
+      { idx: maxHRIdx, above: true },
+      ...(minHRIdx !== maxHRIdx ? [{ idx: minHRIdx, above: false }] : [])
+    ].map(({ idx, above }) => {
+      const l   = hrData[idx];
+      const cx  = xS(idx);
+      const cy  = yS(l.hr);
+      const col = zoneOf(l.hr).color;
+      const dy  = above ? -10 : 14;
+      return `<text x="${cx}" y="${cy + dy}" text-anchor="middle" font-size="10" font-weight="700" fill="${col}" style="pointer-events:none">${Math.round(l.hr)} bpm</text>`;
+    }).join("");
 
     // km x-axis labels
     const xLabels = hrData.map((l, i) => {
@@ -538,10 +564,16 @@ function renderSplitsChart(el, laps) {
         <div style="padding-left:5.9%;padding-right:12.4%;margin-bottom:10px">
           <div class="wd-panel-heading">
             <span class="wd-hr-heading-title">Heart rate per km</span>
-            <p class="wd-panel-desc">Your heart rate for each km. Colored bands show training zones. Rising HR over time = cardiac drift (accumulating fatigue).</p>
+            <div class="wd-panel-desc">
+              Your heart rate for each km. Colored bands show training zones.
+              <span class="wd-desc-chips">
+                <span class="wd-desc-chip wd-desc-chip--amber">rising HR = cardiac drift</span>
+              </span>
+            </div>
           </div>
-          <div style="display:flex;justify-content:flex-end;margin-top:8px">
-            <div class="wd-splits-summary" style="margin:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:16px">
+            <div class="wd-section-hint" style="margin:0;flex:1">${insight}</div>
+            <div class="wd-splits-summary" style="margin:0;flex-shrink:0">
               <div class="wd-splits-stat"><span>avg</span><b>${Math.round(avgHR)} bpm</b></div>
               <div class="wd-splits-stat"><span>min</span><b style="color:#15803D">${Math.round(minHR)} bpm</b></div>
               <div class="wd-splits-stat"><span>max</span><b style="color:#DC2626">${Math.round(maxHR)} bpm</b></div>
@@ -556,7 +588,6 @@ function renderSplitsChart(el, laps) {
           ${yTicks}
           ${xLabels}
         </svg>
-        <div class="wd-section-hint">${insight}</div>
       </div>`;
   }
 
@@ -592,17 +623,20 @@ function renderSplitsChart(el, laps) {
     const zoneRows = activeZones.map(z => {
       const pct = z.km / totalKmWithHR * 100;
       const extraMargin = (z.name === "Threshold" || z.name === "Hard") ? ' style="margin-top:14px"' : '';
-      return `<div class="wd-zone-row"${extraMargin} data-tip-zone="${z.name}|${z.km.toFixed(1)}|${pct.toFixed(0)}">
-        <div class="wd-zone-row-name">
-          <span class="wd-effort-dot wd-zone-dot-tip" style="background:${z.color}" data-tip="${z.desc}"></span>
-          <span style="font-size:13px;font-weight:700;color:#111827">${z.name}</span>
+      return `<div class="wd-zone-row"${extraMargin}>
+        <div class="wd-zone-row-header">
+          <span class="wd-effort-dot" style="background:${z.color}"></span>
+          <span class="wd-zone-row-title">${z.name}</span>
         </div>
-        <span class="wd-zone-row-range">${z.hrRange}</span>
-        <div class="wd-zone-row-bar-wrap">
-          <div class="wd-zone-row-bar" style="width:${pct}%;background:${z.color}"></div>
+        <div class="wd-zone-row-desc">${z.desc}</div>
+        <div class="wd-zone-row-bar-line">
+          <span class="wd-zone-row-range">${z.hrRange}</span>
+          <div class="wd-zone-row-bar-wrap">
+            <div class="wd-zone-row-bar" style="width:${pct}%;background:${z.color}"></div>
+          </div>
+          <span class="wd-zone-row-pct">${pct.toFixed(0)}%</span>
+          <span class="wd-zone-row-km">${z.km.toFixed(1)} km</span>
         </div>
-        <span class="wd-zone-row-pct">${pct.toFixed(0)}%</span>
-        <span class="wd-zone-row-km">${z.km.toFixed(1)} km</span>
       </div>`;
     }).join("");
 
@@ -616,7 +650,12 @@ function renderSplitsChart(el, laps) {
       <div class="wd-section-block">
         <div class="wd-panel-heading" style="margin-bottom:14px;margin-top:10px">
           <span class="wd-hr-heading-title">Training zones</span>
-          <p class="wd-panel-desc">How much of this run you spent in each heart rate intensity zone. Based on HR measured per km.</p>
+          <div class="wd-panel-desc">
+            Time spent in each heart rate intensity zone.
+            <span class="wd-desc-chips">
+              <span class="wd-desc-chip wd-desc-chip--muted">based on HR per km</span>
+            </span>
+          </div>
         </div>
         <div class="wd-zones-summary-bar">${stackedSegments}</div>
         <div class="wd-zones-dominant">
@@ -634,8 +673,66 @@ function renderSplitsChart(el, laps) {
   if (hasHR) {
     const effData = fullLaps.filter(l => l.pace != null && l.hr != null)
       .map(l => ({ index: l.index, distance: l.distance, eff: (1 / l.pace) / l.hr * 10000 }));
-    const avgEff  = d3.mean(effData, d => d.eff);
+    const avgEff    = d3.mean(effData, d => d.eff);
     const maxEffDev = Math.max(...effData.map(d => Math.abs(d.eff - avgEff))) || 0.1;
+
+    // ── Overall diagnosis (compare this week's efficiency to all weeks) ──
+    let diagnosisText = "";
+    const weekIdx = APP_STATE.selectedWeekIdx;
+    if (weekIdx != null) {
+      const w = (APP_STATE.weekly || [])[weekIdx];
+      if (w && w.efficiency != null) {
+        const allEffsSorted = (APP_STATE.weekly || [])
+          .filter(wk => wk.efficiency != null)
+          .map(wk => wk.efficiency)
+          .sort((a, b) => a - b);
+        const p25 = allEffsSorted[Math.floor(allEffsSorted.length * 0.25)];
+        const p75 = allEffsSorted[Math.floor(allEffsSorted.length * 0.75)];
+        if (w.efficiency >= p75)
+          diagnosisText = "Your body handled this run well — you maintained pace without your heart rate spiking.";
+        else if (w.efficiency <= p25)
+          diagnosisText = "Your heart was working harder than usual for this pace — could be fatigue, heat, or a tough course.";
+        else
+          diagnosisText = "A typical effort level for your current fitness — nothing unusual in how your body responded.";
+      }
+    }
+
+    // ── Pattern: how effort changed through the run ──
+    let patternText = "Effort was consistent throughout.";
+    if (effData.length >= 4) {
+      const third = Math.max(1, Math.floor(effData.length / 3));
+      const firstThirdAvg = d3.mean(effData.slice(0, third), d => d.eff);
+      const lastThirdAvg  = d3.mean(effData.slice(-third), d => d.eff);
+      const threshold = avgEff * 0.04;
+
+      if (lastThirdAvg > firstThirdAvg + threshold) {
+        const firstBelowCount = effData.slice(0, 3).filter(d => d.eff < avgEff).length;
+        if (firstBelowCount >= 2) {
+          const rhythmIdx = effData.findIndex((d, i) => i > 0 && d.eff >= avgEff);
+          patternText = rhythmIdx > 0
+            ? `Found your rhythm after km ${rhythmIdx} — efficiency improved through the run.`
+            : "Efficiency built up gradually — stronger in the second half.";
+        } else {
+          patternText = "Efficiency improved through the run — strong finish.";
+        }
+      } else if (firstThirdAvg > lastThirdAvg + threshold) {
+        let fadeCount = 0;
+        for (let i = effData.length - 1; i >= 0; i--) {
+          if (effData[i].eff < avgEff) fadeCount++;
+          else break;
+        }
+        patternText = fadeCount >= 2
+          ? `Strong start, faded in the last ${fadeCount} km — signs of fatigue at the end.`
+          : "Your body had to work increasingly hard towards the end — signs of fatigue in the final kms.";
+      } else {
+        patternText = "Effort was consistent throughout — well-paced run.";
+      }
+    }
+
+    const effTrendLabel = diagnosisText
+      ? `<span>${diagnosisText}</span><span class="wd-trend-sub">${patternText}</span>`
+      : `<span>${patternText}</span>`;
+
     const effRows = laps.map(l => {
       const match = effData.find(d => d.index === l.index);
       if (!match) return "";
@@ -646,7 +743,7 @@ function renderSplitsChart(el, laps) {
       const color  = isGood ? "#22C55E" : isBad ? "#EF4444" : "#94A3B8";
       const side   = isGood ? "right" : "left";
       const kmLabel = l.distance < 950 ? `${(l.distance/1000).toFixed(1)}` : String(l.index);
-      return `<tr class="wd-split-row" data-tip-eff="${match.eff.toFixed(2)}">
+      return `<tr class="wd-split-row">
         <td class="wd-split-km">${kmLabel}</td>
         <td class="wd-split-pace" style="color:${isGood?"#15803D":isBad?"#DC2626":"#111827"};font-size:12px">${match.eff.toFixed(2)}</td>
         <td class="wd-split-bar-cell">
@@ -657,12 +754,20 @@ function renderSplitsChart(el, laps) {
         </td>
       </tr>`;
     }).filter(Boolean).join("");
+
     efficiencyHtml = `
       <div class="wd-section-block">
         <div class="wd-panel-heading" style="margin-bottom:12px;margin-top:0">
           <span class="wd-hr-heading-title">Efficiency per km</span>
-          <p class="wd-panel-desc">Speed divided by heart rate — higher means faster with less effort. Green = more efficient than your average. Red = working harder than usual.</p>
+          <div class="wd-panel-desc">
+            Speed ÷ heart rate — higher means faster with less effort.
+            <span class="wd-desc-chips">
+              <span class="wd-desc-chip wd-desc-chip--green">above avg</span>
+              <span class="wd-desc-chip wd-desc-chip--red">below avg</span>
+            </span>
+          </div>
         </div>
+        <div class="wd-eff-insight">${effTrendLabel}</div>
         <table class="wd-splits-table">
           <thead><tr>
             <th>Km</th>
@@ -678,7 +783,22 @@ function renderSplitsChart(el, laps) {
   const pacePanelHtml = `
     <div class="wd-panel-heading" style="margin-bottom:12px">
       <span class="wd-hr-heading-title">Pace per km</span>
-      <p class="wd-panel-desc">Pace for each km split. Green = faster than your average. Red = slower than your average.</p>
+      <div class="wd-panel-desc">
+        Pace for each km split.
+        <span class="wd-desc-chips">
+          <span class="wd-desc-chip wd-desc-chip--green">faster than avg</span>
+          <span class="wd-desc-chip wd-desc-chip--red">slower than avg</span>
+        </span>
+      </div>
+    </div>
+    <div class="wd-splits-top" style="margin-bottom:14px">
+      <div class="wd-splits-summary">
+        <div class="wd-splits-stat"><span>avg</span><b>${fmtPace(avgPace)}</b></div>
+        <div class="wd-splits-stat"><span>best</span><b style="color:#15803D">${fmtPace(fastestKm)}</b></div>
+        <div class="wd-splits-stat"><span>slowest</span><b style="color:#DC2626">${fmtPace(slowestKm)}</b></div>
+        <div class="wd-splits-stat"><span>total time</span><b>${fmtTotalTime(totalSec)}</b></div>
+      </div>
+      <div class="wd-splits-trend">${trendLabel}</div>
     </div>
     <table class="wd-splits-table">
       <thead><tr>
@@ -689,15 +809,7 @@ function renderSplitsChart(el, laps) {
         ${hasElev ? "<th>Elev</th>" : ""}${hasHR ? "<th>HR</th>" : ""}
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table>
-    <div class="wd-splits-top" style="margin-top:14px">
-      <div class="wd-splits-summary">
-        <div class="wd-splits-stat"><span>avg</span><b>${fmtPace(avgPace)}</b></div>
-        <div class="wd-splits-stat"><span>best</span><b style="color:#15803D">${fmtPace(fastestKm)}</b></div>
-        <div class="wd-splits-stat"><span>slowest</span><b style="color:#DC2626">${fmtPace(slowestKm)}</b></div>
-      </div>
-      <div class="wd-splits-trend">${trendLabel}</div>
-    </div>`;
+    </table>`;
 
   const hrPanelHtml  = hasHR ? hrDeviationHtml
     : `<p class="wd-streams-error">No heart rate data for this run.</p>`;
@@ -710,9 +822,9 @@ function renderSplitsChart(el, laps) {
 
   const tabs = [
     { id: "pace",       icon: "↕",  label: "Pace",       sub: "km splits"    },
-    { id: "hr",         icon: "♥",  label: "Heart Rate", sub: "zone chart"   },
     { id: "zones",      icon: "◎",  label: "Zones",      sub: "time in zone" },
-    { id: "efficiency", icon: "⚡", label: "Efficiency", sub: "effort ratio"  },
+    { id: "hr",         icon: "♥",  label: "Heart Rate", sub: "zone chart"   },
+    { id: "efficiency", icon: "◈",  label: "Efficiency", sub: "effort ratio"  },
   ];
 
   el.innerHTML = `

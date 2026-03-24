@@ -1,5 +1,5 @@
 import APP_STATE from "../js/state.js";
-import { phaseColor, phaseTextColor, PHASE_SCALE } from "../js/colors.js";
+import { phaseColor, phaseTextColor } from "../js/colors.js";
 import { formatWeekLabel, formatPace, showTooltip, moveTooltip, hideTooltip } from "../js/utils.js";
 
 import { renderWeekDetail } from "./weekDetail.js";
@@ -65,7 +65,7 @@ export function renderDetail(weekStart, weekEnd) {
   console.log("[zoom] Phases:", phasesInRange.map(p => p.name));
   console.log("[zoom] Breakpoints in range:", bpInRange.length);
 
-  // ── Phase narrative cards ──
+  // ── Phase narrative ──
   const PHASE_DESCRIPTIONS = {
     "Building":   "Volume is growing week over week. The body is adapting to increasing load — a preparation stage before peak training.",
     "Peak":       "Highest training load of the cycle. Volume is at maximum and stable. Typically the hardest period before a race.",
@@ -75,24 +75,34 @@ export function renderDetail(weekStart, weekEnd) {
   };
   const narrativeEl = document.getElementById("phase-narrative-block");
   if (narrativeEl) {
+    const activeInRange = phasesInRange.filter(p => p.type === "Active");
+
+    // all unique active phases ordered by first appearance
     const seenNames = new Set();
-    const uniqueActive = phasesInRange
-      .filter(p => p.type === "Active")
+    const uniqueActive = activeInRange
+      .slice().sort((a, b) => a.week_start - b.week_start)
       .filter(p => { if (seenNames.has(p.name)) return false; seenNames.add(p.name); return true; });
-    narrativeEl.innerHTML = uniqueActive.map(p => {
-      const color = phaseColor(p.name);
-      const textColor = phaseTextColor(p.name);
-      const desc = PHASE_DESCRIPTIONS[p.name] ?? "";
-      return `<div class="phase-narrative-card" style="--phase-color:${color}">
-        <div class="phase-narrative-name" style="color:${textColor}">${p.name}</div>
-        ${desc ? `<div class="phase-narrative-desc">${desc}</div>` : ""}
-      </div>`;
-    }).join("");
+
+    if (uniqueActive.length === 0) {
+      narrativeEl.innerHTML = "";
+    } else {
+      const cards = uniqueActive.map(p => {
+        const color    = phaseColor(p.name);
+        const txtColor = phaseTextColor(p.name);
+        const desc     = PHASE_DESCRIPTIONS[p.name] ?? "";
+        return `<div class="phase-narrative-card" style="--phase-color:${color}">
+          <div class="phase-narrative-name" style="color:${txtColor}">${p.name}</div>
+          ${desc ? `<p class="phase-narrative-desc">${desc}</p>` : ""}
+        </div>`;
+      }).join("");
+      narrativeEl.innerHTML = cards;
+    }
   }
 
   // ── Step 2: Render timeline ──
   if (APP_STATE.ztLineMetric === undefined) APP_STATE.ztLineMetric = null;
   if (APP_STATE.ztShowBars === undefined) APP_STATE.ztShowBars = true;
+  if (APP_STATE.ztShowLabels === undefined) APP_STATE.ztShowLabels = true;
   renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
 
   // ── Data-availability warnings ──
@@ -159,10 +169,20 @@ export function renderDetail(weekStart, weekEnd) {
 
   applyToggleState();
 
-  // Scroll so the Phase Timeline is centered on screen
+  const labelsCheck = document.getElementById("zt-labels-check");
+  if (labelsCheck) {
+    labelsCheck.checked = APP_STATE.ztShowLabels;
+    labelsCheck.onchange = () => {
+      APP_STATE.ztShowLabels = labelsCheck.checked;
+      renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
+    };
+  }
+
+  // Scroll so Phase Timeline header is at the very top
   setTimeout(() => {
-    document.getElementById("zoom-timeline-chart")
-      .scrollIntoView({ behavior: "smooth", block: "center" });
+    const el = document.getElementById("section-detail");
+    const top = el.getBoundingClientRect().top + window.scrollY + 60;
+    window.scrollTo({ top, behavior: "smooth" });
   }, 100);
 
   // Remove any stale listeners and add fresh ones
@@ -398,13 +418,16 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
       if (hasSubtitle) {
         const s = phase.stats;
+        const subtitleText = bw >= 150 && s.avg_pace
+          ? `${phase.duration_weeks}w · ${s.km_per_week?.toFixed(0) ?? "?"} km/wk · ${formatPace(s.avg_pace)}`
+          : `${phase.duration_weeks}w · ${s.km_per_week?.toFixed(0) ?? "?"} km/wk`;
         segG.append("text")
           .attr("x", cx).attr("y", subY)
           .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
           .style("font-size", "12px").style("pointer-events", "none")
           .attr("clip-path", `url(#${clipId})`)
           .attr("fill", tc).attr("opacity", opacity * 0.8)
-          .text(`${phase.duration_weeks}w · ${s.km_per_week?.toFixed(0) ?? "?"} km/wk`);
+          .text(subtitleText);
       }
 
       if (!hasChanges && bw >= 80 && prevPhase) {
@@ -493,6 +516,24 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
   activeInRange.forEach(drawStripSeg);
   inactiveInRange.forEach(drawStripSeg);
+
+  // ── Phase boundary lines (full height: strip + chart + week labels) ──
+  const fullH = STRIP_H + CHART_H + WEEK_LABEL_H;
+  phasesInRange.forEach(phase => {
+    const boundaries = [];
+    if (phase.week_start > weekStart) boundaries.push(phase.week_start);
+    if (phase.week_end + 1 <= weekEnd)  boundaries.push(phase.week_end + 1);
+    boundaries.forEach(wi => {
+      const px = x(wi);
+      root.append("line")
+        .attr("x1", px).attr("x2", px)
+        .attr("y1", 0).attr("y2", fullH)
+        .attr("stroke", "#D1D5DB")
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "4 3")
+        .style("pointer-events", "none");
+    });
+  });
 
   // ─────────────────────────────────────────
   // ROW 2 — Bar chart with pace overlay
@@ -712,6 +753,61 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .style("pointer-events", "none");
   }
 
+  // ── Bar labels: global peak + per-phase max & min ──
+  if (!APP_STATE.ztLineMetric && barW >= 16 && APP_STATE.ztShowLabels !== false) {
+    const weekMeta = visWeekly.map((w, i) => {
+      const ph = phases.find(p => p.id === w.phase_id);
+      return { w, i, km: w.km_total ?? 0, phaseId: w.phase_id, inactive: ph?.type === "Inactive" };
+    });
+    const activeWeekMeta = weekMeta.filter(d => !d.inactive && d.km > 0);
+
+    if (activeWeekMeta.length > 0) {
+      const globalPeakIdx = activeWeekMeta.reduce((b, d) => d.km > b.km ? d : b).i;
+
+      // For each active phase find local max and min (km > 0)
+      const labelMap = new Map(); // i → { km, type: "peak"|"phase-max"|"phase-min" }
+
+      activeInRange.forEach(phase => {
+        const phaseWeeks = activeWeekMeta.filter(d => d.phaseId === phase.id);
+        if (phaseWeeks.length === 0) return;
+
+        const phMax = phaseWeeks.reduce((b, d) => d.km > b.km ? d : b);
+        const phMin = phaseWeeks.reduce((b, d) => d.km < b.km ? d : b);
+
+        const maxType = phMax.i === globalPeakIdx ? "peak" : "phase-max";
+        labelMap.set(phMax.i, { km: phMax.km, type: maxType });
+
+        // Only add min if it's a different week than max
+        if (phMin.i !== phMax.i) {
+          // Don't overwrite a peak label with a min label
+          if (!labelMap.has(phMin.i) || labelMap.get(phMin.i).type === "phase-min") {
+            labelMap.set(phMin.i, { km: phMin.km, type: "phase-min" });
+          }
+        }
+      });
+
+      const labelG = chartG.append("g")
+        .attr("class", "zt-bar-labels")
+        .style("pointer-events", "none");
+
+      labelMap.forEach(({ km, type }, i) => {
+        const cx = i * barStep + barW / 2;
+        const by = kmScale(km) - 5;
+        const color  = (type === "peak" || type === "phase-max") ? "#6366F1" : "#94A3B8";
+        const weight = (type === "peak" || type === "phase-max") ? "700" : "500";
+
+        labelG.append("text")
+          .attr("x", cx).attr("y", by)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "auto")
+          .style("font-size", "11px")
+          .style("font-weight", weight)
+          .attr("fill", color)
+          .text(`${km.toFixed(0)} km`);
+      });
+    }
+  }
+
   // ── Overlay line: Pace / Avg HR / Efficiency ──
   const metric    = APP_STATE.ztLineMetric;
   let lineHoverData = null; // { points, yScale, fmtTick, color, axisLabel }
@@ -792,6 +888,48 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .text(`${axisLabel} ${axisDirection}`);
   }
 
+  // ── Per-phase max/min labels on line ──
+  function drawLineLabels(points, yScale, fmtTick) {
+    if (points.length === 0 || barW < 16 || APP_STATE.ztShowLabels === false) return;
+
+    const labelMap = new Map(); // localI → { v, type: "best"|"worst" }
+
+    activeInRange.forEach(phase => {
+      const phPts = points.filter(d => {
+        const gi = weekStart + d.i;
+        return gi >= phase.week_start && gi <= phase.week_end;
+      });
+      if (phPts.length === 0) return;
+
+      // lowest y = visually highest on chart = "best"
+      const best  = phPts.reduce((b, d) => yScale(d.v) < yScale(b.v) ? d : b);
+      const worst = phPts.reduce((b, d) => yScale(d.v) > yScale(b.v) ? d : b);
+
+      labelMap.set(best.i, { v: best.v, type: "best" });
+      if (worst.i !== best.i && !labelMap.has(worst.i))
+        labelMap.set(worst.i, { v: worst.v, type: "worst" });
+    });
+
+    labelMap.forEach(({ v, type }, i) => {
+      const cx    = i * barStep + barW / 2;
+      const cy    = yScale(v);
+      const above = type === "best";
+      const color  = above ? "#6366F1" : "#94A3B8";
+      const weight = above ? "700" : "500";
+      const dy     = above ? -10 : 10;
+
+      chartG.append("text")
+        .attr("x", cx).attr("y", cy + dy)
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", above ? "auto" : "hanging")
+        .style("font-size", "11px")
+        .style("font-weight", weight)
+        .attr("fill", color)
+        .style("pointer-events", "none")
+        .text(fmtTick(v));
+    });
+  }
+
   if (metric === "pace" && paceWeeks.length >= 2) {
     const points = visWeekly.map((w, i) => ({ i, v: w.avg_pace })).filter(d => d.v > 0);
     // pace: low value = fast = top of chart
@@ -800,6 +938,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .range([0, CHART_H]);
     drawOverlayLine(points, pScale, "#D97741", "pace", "faster ↑",
       v => formatPace(v).replace(" /km", ""));
+    drawLineLabels(points, pScale, v => formatPace(v).replace(" /km", ""));
   }
 
   if (metric === "hr") {
@@ -829,6 +968,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         .range([0, CHART_H]);
       drawOverlayLine(hrPoints, hrScale, "#6366F1", "avg HR", "lower ↓",
         v => `${Math.round(v)}`);
+      drawLineLabels(hrPoints, hrScale, v => `${Math.round(v)} bpm`);
     }
   }
 
@@ -851,12 +991,13 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         .range([CHART_H, 0]);
       drawOverlayLine(effPoints, effScale, "#10B981", "efficiency", "better ↑",
         v => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
+      drawLineLabels(effPoints, effScale, v => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
     }
   }
 
   // ── Line hover overlay (crosshair + tooltip on curve) ──
   if (lineHoverData) {
-    const { points, yScale, fmtTick, color, axisLabel } = lineHoverData;
+    const { points, yScale, fmtTick, color } = lineHoverData;
 
     const crossLine = chartG.append("line")
       .attr("y1", 0).attr("y2", CHART_H)
@@ -997,81 +1138,25 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   const legendG = root.append("g")
     .attr("transform", `translate(0,${STRIP_H + CHART_H + WEEK_LABEL_H})`);
 
-  const PHASE_DESCRIPTIONS = {
-    "Building":   "Volume is growing week over week. The body is adapting to increasing load — a preparation stage before peak training.",
-    "Peak":       "Highest training load of the cycle. Volume is at maximum and stable. Typically the hardest period before a race.",
-    "Base":       "Steady, moderate volume. No clear growth or drop. Maintaining fitness and consistency — the most common phase.",
-    "Recovery":   "Volume is significantly below normal. Usually follows a peak or race, or reflects illness / low motivation.",
-    "Sharpening": "Volume drops while pace improves. Classic pre-race tapering — less km but higher quality. Body is getting sharp.",
-  };
+  const lcy = 14; // items row y — tight, no extra gap
 
-  const usedPhaseNames = new Set(phasesInRange.filter(p => p.type === "Active").map(p => p.name));
-  const hasInactive = phasesInRange.some(p => p.type === "Inactive");
-  const lcy = 30; // items row y
-  let lx = 0;
-
-  // Left header: "phases"
-  legendG.append("text").attr("x", 0).attr("y", 10)
-    .attr("dominant-baseline", "middle")
-    .style("font-size", "10px").style("fill", "#9CA3AF")
-    .style("text-transform", "uppercase").style("letter-spacing", "0.05em")
-    .text("phases");
-
-  if (hasInactive) {
-    const restItemW = 16 + 4 * 7 + 18;
-    const restG = legendG.append("g").style("cursor", "default")
-      .on("mouseover", (event) => showTooltip(tooltip, event,
-        `<div style="font-weight:700;font-size:14px;color:#6B7280;margin-bottom:6px">Rest</div>
-         <div style="color:#9CA3AF;font-size:12px;line-height:1.6;max-width:200px">No running activity for 10+ days. Gap between training blocks.</div>`))
-      .on("mousemove", (event) => moveTooltip(tooltip, event))
-      .on("mouseout", () => hideTooltip(tooltip));
-    restG.append("circle").attr("cx", lx + 6).attr("cy", lcy).attr("r", 6)
-      .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
-    restG.append("text").attr("x", lx + 16).attr("y", lcy)
-      .attr("dominant-baseline", "middle")
-      .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
-      .text("Rest");
-    restG.append("rect").attr("x", lx).attr("y", lcy - 10)
-      .attr("width", restItemW).attr("height", 20).attr("fill", "transparent");
-    lx += restItemW;
-  }
-
-  PHASE_SCALE.filter(p => usedPhaseNames.has(p.name)).forEach(p => {
-    const itemW = 16 + p.label.length * 7 + 18;
-    const itemG = legendG.append("g").style("cursor", "default")
-      .on("mouseover", (event) => showTooltip(tooltip, event,
-        `<div style="font-weight:700;font-size:14px;color:${p.bg};margin-bottom:6px">${p.label}</div>
-         <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:220px">${PHASE_DESCRIPTIONS[p.name] ?? ""}</div>`))
-      .on("mousemove", (event) => moveTooltip(tooltip, event))
-      .on("mouseout", () => hideTooltip(tooltip));
-    itemG.append("circle").attr("cx", lx + 6).attr("cy", lcy).attr("r", 6)
-      .attr("fill", p.bg).attr("opacity", 0.9);
-    itemG.append("text").attr("x", lx + 16).attr("y", lcy)
-      .attr("dominant-baseline", "middle")
-      .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
-      .text(p.label);
-    itemG.append("rect").attr("x", lx).attr("y", lcy - 10)
-      .attr("width", itemW).attr("height", 20).attr("fill", "transparent");
-    lx += itemW;
-  });
-
-  // Right header: "run intensity"
-  legendG.append("text").attr("x", innerW).attr("y", 10)
-    .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-    .style("font-size", "10px").style("fill", "#9CA3AF")
-    .style("text-transform", "uppercase").style("letter-spacing", "0.05em")
-    .text("run intensity");
-
-  // HR zone swatches — right-aligned
+  // HR zone swatches — "run intensity" label then swatches left-to-right
   const ZONE_ITEMS = [
     { color: "#93C5E8", label: "easy run",     tip: "Average HR below 75% of estimated max. Comfortable aerobic effort." },
     { color: "#f8e19a", label: "moderate run",  tip: "Average HR 75–88% of estimated max. Steady effort, aerobic threshold zone." },
     { color: "#f7aaaa", label: "hard run",      tip: "Average HR above 88% of estimated max. High intensity, race-pace or interval effort." },
   ];
-  let rx = innerW;
-  [...ZONE_ITEMS].reverse().forEach(z => {
-    const itemW = 10 + z.label.length * 6.5 + 16;
-    rx -= itemW;
+
+  // "run intensity" label on the left of the row
+  legendG.append("text").attr("x", 0).attr("y", lcy)
+    .attr("dominant-baseline", "middle")
+    .style("font-size", "13px").style("fill", "#9CA3AF")
+    .style("text-transform", "uppercase").style("letter-spacing", "0.05em")
+    .text("run intensity");
+
+  let rx = "run intensity".length * 8 + 16; // start after the label
+  ZONE_ITEMS.forEach(z => {
+    const itemW = 12 + z.label.length * 8 + 16;
     const zG = legendG.append("g").style("cursor", "default")
       .on("mouseover", (event) => showTooltip(tooltip, event,
         `<div style="font-weight:700;font-size:13px;color:${z.color};margin-bottom:5px">${z.label}</div>
@@ -1079,16 +1164,17 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .on("mousemove", (event) => moveTooltip(tooltip, event))
       .on("mouseout", () => hideTooltip(tooltip));
     zG.append("rect")
-      .attr("x", rx).attr("y", lcy - 5)
-      .attr("width", 10).attr("height", 10).attr("rx", 2)
+      .attr("x", rx).attr("y", lcy - 6)
+      .attr("width", 12).attr("height", 12).attr("rx", 2)
       .attr("fill", z.color);
     zG.append("text")
-      .attr("x", rx + 14).attr("y", lcy)
+      .attr("x", rx + 16).attr("y", lcy)
       .attr("dominant-baseline", "middle")
-      .style("font-size", "11px").style("fill", "#6B7280")
+      .style("font-size", "13px").style("fill", "#6B7280")
       .text(z.label);
     zG.append("rect").attr("x", rx).attr("y", lcy - 10)
       .attr("width", itemW).attr("height", 20).attr("fill", "transparent");
+    rx += itemW;
   });
 
   // ── Day ticks + numbers (row 1) ──
