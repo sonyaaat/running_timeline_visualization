@@ -23,6 +23,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
 STRAVA_CLIENT_ID     = os.environ.get("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET")
 STRAVA_REDIRECT_URI  = os.environ.get("STRAVA_REDIRECT_URI", "http://localhost:5000/auth/callback")
+# Temporary: hardcoded refresh token from env (bypasses real OAuth login)
+STRAVA_REFRESH_TOKEN = os.environ.get("STRAVA_REFRESH_TOKEN")
 
 # Per-user pipeline status keyed by session_id
 _user_status = {}
@@ -108,41 +110,49 @@ def login_page():
 
 @app.route("/auth/strava")
 def auth_strava():
-    url = (
-        "https://www.strava.com/oauth/authorize"
-        f"?client_id={STRAVA_CLIENT_ID}"
-        f"&redirect_uri={STRAVA_REDIRECT_URI}"
-        f"&response_type=code"
-        f"&approval_prompt=auto"
-        f"&scope=activity:read_all"
-    )
-    return redirect(url)
-
-
-@app.route("/auth/callback")
-def auth_callback():
-    if request.args.get("error"):
-        return redirect("/login?error=access_denied")
-
-    code = request.args.get("code")
-    if not code:
-        return redirect("/login?error=no_code")
-
-    resp = requests.post("https://www.strava.com/oauth/token", data={
-        "client_id":     STRAVA_CLIENT_ID,
-        "client_secret": STRAVA_CLIENT_SECRET,
-        "code":          code,
-        "grant_type":    "authorization_code",
-    })
-    if not resp.ok:
-        return redirect("/login?error=token_exchange_failed")
-
-    data = resp.json()
-    session["refresh_token"] = data["refresh_token"]
-    session["athlete_name"]  = data.get("athlete", {}).get("firstname", "Athlete")
+    # TEMPORARY: skip real OAuth, use refresh token from env directly
+    session["refresh_token"] = STRAVA_REFRESH_TOKEN
+    session["athlete_name"]  = "Athlete"
     _session_id()  # ensure sid is set
-
     return redirect("/")
+
+    # --- Real Strava OAuth (commented out temporarily) ---
+    # url = (
+    #     "https://www.strava.com/oauth/authorize"
+    #     f"?client_id={STRAVA_CLIENT_ID}"
+    #     f"&redirect_uri={STRAVA_REDIRECT_URI}"
+    #     f"&response_type=code"
+    #     f"&approval_prompt=auto"
+    #     f"&scope=activity:read_all"
+    # )
+    # return redirect(url)
+
+
+# --- Real OAuth callback (commented out temporarily) ---
+# @app.route("/auth/callback")
+# def auth_callback():
+#     if request.args.get("error"):
+#         return redirect("/login?error=access_denied")
+#
+#     code = request.args.get("code")
+#     if not code:
+#         return redirect("/login?error=no_code")
+#
+#     resp = requests.post("https://www.strava.com/oauth/token", data={
+#         "client_id":     STRAVA_CLIENT_ID,
+#         "client_secret": STRAVA_CLIENT_SECRET,
+#         "code":          code,
+#         "grant_type":    "authorization_code",
+#     })
+#     if not resp.ok:
+#         return redirect("/login?error=token_exchange_failed")
+#
+#     data = resp.json()
+#     session["refresh_token"] = data["refresh_token"]
+#     session["athlete_name"]  = data.get("athlete", {}).get("firstname", "Athlete")
+#     _session_id()  # ensure sid is set
+#
+#     return redirect("/")
 
 
 @app.route("/auth/logout")
@@ -215,7 +225,7 @@ def trigger_pipeline():
                 "grant_type":    "refresh_token",
             })
             if not token_resp.ok:
-                raise RuntimeError("Failed to refresh Strava token")
+                raise RuntimeError(f"Failed to refresh Strava token: {token_resp.status_code} {token_resp.text}")
             access_token = token_resp.json()["access_token"]
 
             # 2. Fetch activities
