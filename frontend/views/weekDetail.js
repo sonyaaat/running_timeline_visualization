@@ -114,7 +114,8 @@ export function renderWeekDetail(weekIdx) {
     <div class="wd-header">
       <div class="wd-header-left">
         <span class="wd-label">${headerLabel}</span>
-        <div class="section-label wd-section-label">Week Detail <span class="info-hint" data-tooltip="A breakdown of every day in the selected week. Click any run to see its splits and HR chart. Use ← → to navigate between weeks.">?</span></div>
+        <div class="section-label wd-section-label">Week Detail</div>
+        <div class="section-desc">Every day of the selected week. Click a run to see splits and HR. Use ← → to move between weeks.</div>
         <span class="wd-summary">${weekActs.length} run${weekActs.length !== 1 ? "s" : ""} · ${totalKm.toFixed(1)} km</span>
       </div>
       <div class="wd-nav">

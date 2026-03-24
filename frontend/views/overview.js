@@ -86,7 +86,7 @@ export function renderOverview() {
   restG.append("text")
     .attr("x", lx + 16).attr("y", cy)
     .attr("dominant-baseline", "middle")
-    .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+    .style("font-size", "14px").style("fill", "#374151").style("font-weight", "600")
     .text("Rest");
   restG.append("rect")
     .attr("x", lx).attr("y", cy - 10)
@@ -112,7 +112,7 @@ export function renderOverview() {
     itemG.append("text")
       .attr("x", lx + 16).attr("y", cy)
       .attr("dominant-baseline", "middle")
-      .style("font-size", "12px").style("fill", "#374151").style("font-weight", "500")
+      .style("font-size", "14px").style("fill", "#374151").style("font-weight", "600")
       .text(p.label);
 
     // invisible hit area

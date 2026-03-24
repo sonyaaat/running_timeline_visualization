@@ -8,7 +8,7 @@ const STRIP_H      = 72;
 const CHART_H      = 260;
 const WEEK_LABEL_H = 56;
 const LEGEND_H     = 44;
-const MARGIN       = { top: 16, right: 64, bottom: 10, left: 44 };
+const MARGIN       = { top: 16, right: 20, bottom: 10, left: 80 };
 
 let _weekDeselectedWeekStart = null;
 let _weekDeselectedWeekEnd   = null;
@@ -65,7 +65,8 @@ export function renderDetail(weekStart, weekEnd) {
   console.log("[zoom] Breakpoints in range:", bpInRange.length);
 
   // ── Step 2: Render timeline ──
-  if (!APP_STATE.ztLineMetric) APP_STATE.ztLineMetric = "pace";
+  if (APP_STATE.ztLineMetric === undefined) APP_STATE.ztLineMetric = null;
+  if (APP_STATE.ztShowBars === undefined) APP_STATE.ztShowBars = true;
   renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
 
   // ── Data-availability warnings ──
@@ -101,33 +102,36 @@ export function renderDetail(weekStart, weekEnd) {
     warnEl.dataset.tooltip = parts.join(" ");
   }
 
-  // ── Line metric toggle buttons ──
-  document.querySelectorAll(".zt-toggle-btn[data-metric]").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.metric === APP_STATE.ztLineMetric);
+  // ── All toggle buttons are mutually exclusive ──
+  const distBtn = document.getElementById("zt-dist-toggle");
+  const metricBtns = document.querySelectorAll(".zt-toggle-btn[data-metric]");
+
+  function applyToggleState() {
+    const barsEl = document.querySelector(".zt-runs");
+    if (barsEl) barsEl.style.display = APP_STATE.ztShowBars ? "" : "none";
+    if (distBtn) distBtn.classList.toggle("active", APP_STATE.ztShowBars);
+    metricBtns.forEach(b => b.classList.toggle("active", b.dataset.metric === APP_STATE.ztLineMetric));
+  }
+
+  if (distBtn) {
+    distBtn.onclick = () => {
+      APP_STATE.ztShowBars = true;
+      APP_STATE.ztLineMetric = null;
+      applyToggleState();
+      renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
+    };
+  }
+
+  metricBtns.forEach(btn => {
     btn.onclick = () => {
+      APP_STATE.ztShowBars = false;
       APP_STATE.ztLineMetric = btn.dataset.metric;
-      document.querySelectorAll(".zt-toggle-btn[data-metric]").forEach(b =>
-        b.classList.toggle("active", b === btn)
-      );
+      applyToggleState();
       renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange);
     };
   });
 
-  // ── Distance bars toggle ──
-  if (APP_STATE.ztShowBars === undefined) APP_STATE.ztShowBars = true;
-  const distBtn = document.getElementById("zt-dist-toggle");
-  // Apply saved state immediately after render
-  const barsEl = document.querySelector(".zt-runs");
-  if (barsEl) barsEl.style.display = APP_STATE.ztShowBars ? "" : "none";
-  if (distBtn) {
-    distBtn.classList.toggle("active", APP_STATE.ztShowBars);
-    distBtn.onclick = () => {
-      APP_STATE.ztShowBars = !APP_STATE.ztShowBars;
-      distBtn.classList.toggle("active", APP_STATE.ztShowBars);
-      const el = document.querySelector(".zt-runs");
-      if (el) el.style.display = APP_STATE.ztShowBars ? "" : "none";
-    };
-  }
+  applyToggleState();
 
   // Scroll so the Phase Timeline is centered on screen
   setTimeout(() => {
@@ -375,23 +379,25 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       .style("pointer-events", "none");
   });
 
-  // ── Left Y-axis (km/wk) ──
-  [0, Math.round(maxKm / 2), Math.round(maxKm)].forEach(v => {
-    chartG.append("line")
-      .attr("x1", -4).attr("x2", 0)
-      .attr("y1", kmScale(v)).attr("y2", kmScale(v))
-      .attr("stroke", "rgba(0,0,0,0.25)").attr("stroke-width", 1);
+  // ── Left Y-axis (km/wk) — only when distance is shown ──
+  if (!APP_STATE.ztLineMetric) {
+    [0, Math.round(maxKm / 2), Math.round(maxKm)].forEach(v => {
+      chartG.append("line")
+        .attr("x1", -4).attr("x2", 0)
+        .attr("y1", kmScale(v)).attr("y2", kmScale(v))
+        .attr("stroke", "rgba(0,0,0,0.25)").attr("stroke-width", 1);
+      chartG.append("text")
+        .attr("x", -10).attr("y", kmScale(v))
+        .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+        .style("font-size", "13px").style("fill", "#4B5563").style("font-weight", "600")
+        .text(`${v}`);
+    });
     chartG.append("text")
-      .attr("x", -10).attr("y", kmScale(v))
-      .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-      .style("font-size", "13px").style("fill", "#4B5563").style("font-weight", "600")
-      .text(`${v}`);
-  });
-  chartG.append("text")
-    .attr("transform", `translate(-28,${CHART_H / 2}) rotate(-90)`)
-    .attr("text-anchor", "middle")
-    .style("font-size", "12px").style("fill", "rgba(99,102,241,0.9)").style("font-weight", "700")
-    .text("km / wk");
+      .attr("transform", `translate(-28,${CHART_H / 2}) rotate(-90)`)
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px").style("fill", "rgba(99,102,241,0.9)").style("font-weight", "700")
+      .text("km / wk");
+  }
 
 
   const sel = APP_STATE.selectedPhaseId;
@@ -549,8 +555,8 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   }
 
   // ── Overlay line: Pace / Avg HR / Efficiency ──
-  const metric    = APP_STATE.ztLineMetric ?? "pace";
-  const axisX     = innerW + 8;
+  const metric    = APP_STATE.ztLineMetric;
+  if (metric) {
 
   // Helper: split array into contiguous segments (gap ≤ 2 weeks allowed)
   function toSegments(data) {
@@ -564,7 +570,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
     return segs;
   }
 
-  // Helper: draw line + dots + right axis
+  // Helper: draw line + dots + left axis
   function drawOverlayLine(points, yScale, color, axisLabel, axisDirection, fmtTick) {
     if (points.length < 2) return;
     const lineGen = d3.line()
@@ -602,29 +608,26 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         .attr("opacity", 0.85).style("pointer-events", "none");
     });
 
-    // Right Y-axis ticks
+    // Left Y-axis ticks
     const vMin = d3.min(points, d => d.v);
     const vMax = d3.max(points, d => d.v);
     const mid  = (vMin + vMax) / 2;
     [vMin, mid, vMax].forEach(v => {
       chartG.append("line")
-        .attr("x1", axisX - 4).attr("x2", axisX)
+        .attr("x1", -4).attr("x2", 0)
         .attr("y1", yScale(v)).attr("y2", yScale(v))
         .attr("stroke", color).attr("stroke-width", 1).attr("opacity", 0.4);
       chartG.append("text")
-        .attr("x", axisX + 2).attr("y", yScale(v))
-        .attr("dominant-baseline", "middle")
+        .attr("x", -10).attr("y", yScale(v))
+        .attr("text-anchor", "end").attr("dominant-baseline", "middle")
         .style("font-size", "13px").style("fill", color).style("font-weight", "600").style("opacity", "0.9")
         .text(fmtTick(v));
     });
     chartG.append("text")
-      .attr("x", axisX + 2).attr("y", -8)
+      .attr("transform", `translate(-62,${CHART_H / 2}) rotate(-90)`)
+      .attr("text-anchor", "middle")
       .style("font-size", "12px").style("fill", color).style("font-weight", "700").style("opacity", "0.9")
-      .text(axisLabel);
-    chartG.append("text")
-      .attr("x", axisX + 2).attr("y", 10)
-      .style("font-size", "11px").style("fill", color).style("opacity", "0.55")
-      .text(axisDirection);
+      .text(`${axisLabel} ${axisDirection}`);
   }
 
   if (metric === "pace" && paceWeeks.length >= 2) {
@@ -784,6 +787,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         hideTransitionPopover();
       });
   });
+  } // end if (metric)
 
   // ─────────────────────────────────────────
   // ROW 3 — Time axis: day ticks + month bands

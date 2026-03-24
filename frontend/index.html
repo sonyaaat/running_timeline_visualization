@@ -50,7 +50,8 @@
 
     <!-- Section 1: Overview timeline (always visible) -->
     <section id="section-overview">
-      <div class="section-label">Overview — drag to explore a period <span class="info-hint" data-tooltip="Your full training history at a glance. Each bar is one week of running. Drag any range to zoom into that period and explore it in detail.">?</span></div>
+      <div class="section-label">Overview</div>
+      <div class="section-desc">Your full training history at a glance. Each bar is one week of running — drag any range to zoom into that period.</div>
       <div id="overview-chart"></div>
     </section>
 
@@ -63,15 +64,15 @@
           <button id="btn-reset">← All phases</button>
           <span id="zoom-label"></span>
         </div>
-        <div class="section-label">Phase Timeline <span class="info-hint" data-tooltip="Click a week bar to see daily runs. Toggle the line to compare pace, HR or efficiency.">?</span></div>
+        <div class="section-label">Phase Timeline</div>
+        <div class="section-desc" id="phase-timeline-desc">Click a week bar to see daily runs. Toggle the line below to compare pace, HR, or efficiency.</div>
         <div id="zt-line-toggle">
-          <span class="zt-toggle-label">Show line:</span>
-          <button class="zt-toggle-btn active" data-metric="pace">Pace</button>
+          <span class="zt-toggle-label">Show</span>
+          <button class="zt-toggle-btn zt-dist-btn" id="zt-dist-toggle">Distance</button>
+          <button class="zt-toggle-btn" data-metric="pace">Pace</button>
           <button class="zt-toggle-btn" data-metric="hr">Avg HR</button>
           <button class="zt-toggle-btn" data-metric="efficiency">Efficiency</button>
           <span class="info-hint zt-no-data-warn" id="zt-warn-data" style="display:none" data-tooltip="">!</span>
-          <span class="zt-toggle-sep"></span>
-          <button class="zt-toggle-btn zt-dist-btn active" id="zt-dist-toggle">Show distance</button>
         </div>
       </div>
 

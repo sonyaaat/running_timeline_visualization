@@ -125,6 +125,22 @@ body {
   gap: 6px;
 }
 
+.section-desc {
+  font-size: 15px;
+  font-weight: 600;
+  color: #9CA3AF;
+  margin: -4px 0 12px;
+  line-height: 1.6;
+}
+
+#section-overview .section-desc {
+  padding-left: 60px;
+}
+
+#phase-timeline-desc {
+  margin-bottom: 24px;
+}
+
 .info-hint {
   display: inline-flex;
   align-items: center;
