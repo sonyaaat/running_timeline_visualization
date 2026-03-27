@@ -50,7 +50,7 @@ body {
 }
 
 #header {
-  padding: 48px 32px 36px;
+  padding: 28px 32px 22px;
   margin-bottom: 28px;
   text-align: center;
   border-bottom: 1px solid #F3F4F6;
@@ -68,31 +68,61 @@ body {
   color: #4F7942;
 }
 
-#meta-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #F3F4F6;
-  border-radius: 999px;
-  padding: 5px 16px;
-  margin-top: 0;
+
+/* ── Stats summary bar ── */
+@keyframes stat-card-appear {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-#meta-runs {
-  font-size: 13px;
-  font-weight: 700;
+#stats-bar {
+  display: flex;
+  gap: 10px;
+  padding-left: 60px;
+  margin-bottom: 14px;
+}
+
+.stat-card {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 20px 22px 18px;
+  border: 1px solid #EFEFEF;
+  border-top: 3px solid #4F7942;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  opacity: 0;
+  animation: stat-card-appear 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 800;
   color: #111827;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
-#meta-since {
+.stat-suffix {
   font-size: 13px;
-  color: #6B7280;
-  font-weight: 400;
+  font-weight: 600;
+  color: #9CA3AF;
+  letter-spacing: 0;
 }
 
-#meta-label::before {
-  content: "🏃";
-  font-size: 13px;
+.stat-label {
+  font-size: 11px;
+  color: #B0B7C3;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: 1px solid #F3F4F6;
+  padding-top: 10px;
+  margin-top: 2px;
 }
 
 /* Overview section — full width */

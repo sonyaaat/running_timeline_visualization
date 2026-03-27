@@ -1,7 +1,6 @@
 import { loadData } from "./dataLoader.js";
 import APP_STATE from "./state.js";
 import { renderOverview } from "../views/overview.js";
-import { formatDate } from "./utils.js";
 
 let pollInterval = null;
 let listenersAttached = false;
@@ -10,13 +9,6 @@ let listenersAttached = false;
 function showApp(data) {
   document.getElementById("loading").style.display = "none";
   document.getElementById("app").style.display = "block";
-
-  const meta = data.meta;
-  const runs = meta.total_runs ?? "?";
-  const startDateStr = (meta.date_start ?? "").split("/")[0];
-  const start = formatDate(startDateStr);
-  document.getElementById("meta-runs").textContent = `${runs} runs`;
-  document.getElementById("meta-since").textContent = `since ${start}`;
 
   renderOverview();
 

@@ -22,6 +22,8 @@
     <!-- Sign out button — fixed top right -->
     <div id="user-section">
       <span id="user-name"></span>
+      <button id="btn-sync" onclick="runPipeline()">↻ Sync with Strava</button>
+      <span id="sync-status"></span>
       <button id="btn-logout" onclick="showLogoutModal()">Sign out</button>
     </div>
 
@@ -39,13 +41,6 @@
     <!-- Header -->
     <header id="header">
       <h1><span class="accent">Running</span> Phase Explorer</h1>
-      <p id="meta-label"><span id="meta-runs"></span><span id="meta-since"></span></p>
-      <div id="sync-section" style="margin-top: 12px">
-        <button id="btn-sync" onclick="runPipeline()">
-          ↻ Sync with Strava
-        </button>
-        <span id="sync-status"></span>
-      </div>
     </header>
 
     <!-- Section 1: Overview timeline (always visible) -->

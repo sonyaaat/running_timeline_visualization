@@ -14,6 +14,8 @@ const MARGIN     = { top: 16, right: 20, bottom: 10, left: 60 };
 // Public: renderOverview
 // ─────────────────────────────────────────────────────────
 export function renderOverview() {
+  renderStatsBar();
+
   const container = document.getElementById("overview-chart");
   container.innerHTML = "";
 
@@ -438,6 +440,69 @@ export function renderOverview() {
     });
 
   // ─────────────────────────────────────────────────────────
+  // Drag hint — animated selection shown on first view (no zoom active)
+  // ─────────────────────────────────────────────────────────
+  if (!APP_STATE.hasZoom) {
+    // Pick a range centered in the middle of the chart (~20% width)
+    const hintWeekStart = Math.round(nWeeks * 0.38);
+    const hintWeekEnd   = Math.round(nWeeks * 0.60);
+
+    const hx0 = x(hintWeekStart);
+    const hx1 = x(hintWeekEnd + 1);
+    const hintW = hx1 - hx0;
+
+    const hintG = chartG.append("g").attr("class", "drag-hint-overlay");
+
+    // Dark side masks
+    if (hx0 > 0) {
+      hintG.append("rect")
+        .attr("x", 0).attr("y", 0)
+        .attr("width", hx0).attr("height", CHART_H)
+        .attr("fill", "rgba(0,0,0,0.10)");
+    }
+    if (hx1 < innerW) {
+      hintG.append("rect")
+        .attr("x", hx1).attr("y", 0)
+        .attr("width", innerW - hx1).attr("height", CHART_H)
+        .attr("fill", "rgba(0,0,0,0.10)");
+    }
+
+    // Marching-ants dashed border
+    hintG.append("rect")
+      .attr("class", "drag-hint-border")
+      .attr("x", hx0).attr("y", 1)
+      .attr("width", hintW).attr("height", CHART_H - 2)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(50,50,50,0.55)")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "6,5")
+      .attr("rx", 2);
+
+    // Week count pill
+    const hintWeekCount = hintWeekEnd - hintWeekStart + 1;
+    const cx = hx0 + hintW / 2;
+    const cy = CHART_H / 2;
+    const pillLabel = `${hintWeekCount}w — drag to explore`;
+    const pillW = pillLabel.length * 6.8 + 20;
+
+    hintG.append("rect")
+      .attr("x", cx - pillW / 2).attr("y", cy - 12)
+      .attr("width", pillW).attr("height", 22).attr("rx", 11)
+      .attr("fill", "rgba(255,255,255,0.92)")
+      .attr("stroke", "#D1D5DB").attr("stroke-width", 1);
+    hintG.append("text")
+      .attr("x", cx).attr("y", cy + 1)
+      .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+      .style("font-size", "11px").style("font-weight", "600")
+      .style("fill", "#374151").style("pointer-events", "none")
+      .text(pillLabel);
+
+    // Dismiss on first hover over chart
+    dragArea.on("mouseenter.hint", () => hintG.remove());
+    dragArea.on("mousedown.hint",  () => hintG.remove());
+  }
+
+  // ─────────────────────────────────────────────────────────
   // ROW 3 — Month / time axis
   // ─────────────────────────────────────────────────────────
   const axisG = root.append("g")
@@ -645,4 +710,65 @@ function buildMonthTicks(weekly, x, innerW) {
     isFirst = false;
   });
   return ticks;
+}
+
+// ─────────────────────────────────────────────────────────
+// Stats summary bar — rendered once, animated on first load
+// ─────────────────────────────────────────────────────────
+function renderStatsBar() {
+  // Only render once — persists across zoom/reset calls
+  if (document.getElementById("stats-bar")) return;
+
+  const { weekly, phases, activities } = APP_STATE;
+
+  const totalRuns   = (activities || []).filter(a => a.type === "Run").length;
+  const totalKm     = Math.round(d3.sum(weekly, d => d.km_total ?? 0));
+  const peakKm      = Math.round(d3.max(weekly, d => d.km_total ?? 0) || 0);
+  const phaseCount  = phases.filter(p => p.type === "Active").length;
+
+  const stats = [
+    { value: totalRuns,  suffix: "",      label: "runs logged"     },
+    { value: totalKm,    suffix: " km",   label: "total distance"  },
+    { value: peakKm,     suffix: " km/w", label: "peak week"       },
+    { value: phaseCount, suffix: "",      label: "training phases" },
+  ];
+
+  const bar = document.createElement("div");
+  bar.id = "stats-bar";
+
+  stats.forEach((s, i) => {
+    const card = document.createElement("div");
+    card.className = "stat-card";
+    card.style.animationDelay = `${i * 160}ms`;
+
+    const valueEl = document.createElement("div");
+    valueEl.className = "stat-value";
+    valueEl.innerHTML = `<span class="stat-num">0</span><span class="stat-suffix">${s.suffix}</span>`;
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "stat-label";
+    labelEl.textContent = s.label;
+
+    card.appendChild(valueEl);
+    card.appendChild(labelEl);
+    bar.appendChild(card);
+
+    // Count-up starts after card slides in
+    const numEl = valueEl.querySelector(".stat-num");
+    setTimeout(() => countUp(numEl, s.value), i * 160 + 280);
+  });
+
+  const chartDiv = document.getElementById("overview-chart");
+  chartDiv.parentElement.insertBefore(bar, chartDiv);
+}
+
+function countUp(el, target, duration = 900) {
+  const start = performance.now();
+  function step(now) {
+    const t    = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    el.textContent = Math.round(ease * target).toLocaleString();
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }

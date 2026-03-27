@@ -118,6 +118,27 @@
   opacity: 0.5;
 }
 
+/* ── Drag hint overlay ── */
+@keyframes drag-hint-show {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  72%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes march-ants {
+  to { stroke-dashoffset: -18; }
+}
+
+.drag-hint-overlay {
+  animation: drag-hint-show 3.8s ease forwards;
+  pointer-events: none;
+}
+
+.drag-hint-border {
+  animation: march-ants 0.55s linear infinite;
+}
+
 /* Tooltip */
 .tooltip {
   position: absolute;
