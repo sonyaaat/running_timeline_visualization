@@ -67,11 +67,44 @@ export function renderOverview() {
     "Sharpening": "Volume drops while pace improves. Classic pre-race tapering — less km but higher quality. Body is getting sharp.",
   };
 
+  // Sparkline shapes per phase — normalized 0-1 values (0=low, 1=high volume)
+  const SPARKLINES = {
+    "Rest":       { vals: [0.05, 0.05, 0.05, 0.05, 0.05], dashed: true  },
+    "Base":       { vals: [0.48, 0.52, 0.50, 0.52, 0.50], dashed: false },
+    "Building":   { vals: [0.12, 0.32, 0.55, 0.75, 0.90], dashed: false },
+    "Peak":       { vals: [0.90, 0.94, 0.90, 0.94, 0.90], dashed: false },
+    "Sharpening": { vals: [0.88, 0.72, 0.55, 0.40, 0.28], dashed: false },
+    "Recovery":   { vals: [0.58, 0.42, 0.30, 0.22, 0.20], dashed: false },
+  };
+
+  const SP_W = 26, SP_H = 12; // sparkline dimensions
+
+  function addSparkline(g, lx, cy, name, color) {
+    const sp = SPARKLINES[name] ?? { vals: [0.5,0.5,0.5,0.5,0.5], dashed: false };
+    const pts = sp.vals.map((v, i) => [
+      lx + (i / (sp.vals.length - 1)) * SP_W,
+      cy + SP_H / 2 - v * SP_H,
+    ]);
+    const lineFn = d3.line().curve(d3.curveMonotoneX);
+    g.append("path")
+      .attr("d", lineFn(pts))
+      .attr("fill", "none")
+      .attr("stroke", color)
+      .attr("stroke-width", 2.5)
+      .attr("stroke-linecap", "round")
+      .attr("stroke-linejoin", "round")
+      .attr("opacity", sp.dashed ? 0.45 : 1)
+      .attr("stroke-dasharray", sp.dashed ? "3,3" : "none")
+      .style("pointer-events", "none");
+  }
+
   const usedNames = new Set(activePhases.map(p => p.name));
   let lx = 0;
+  const TEXT_OFFSET = SP_W + 8; // text starts after sparkline + gap
+  const ITEM_TRAIL  = 28;
 
   // Rest indicator — first (least intense)
-  const restItemW = 16 + 4 * 7 + 18;
+  const restItemW = TEXT_OFFSET + 4 * 7 + ITEM_TRAIL;
   const restG = legBarG.append("g")
     .style("cursor", "default")
     .on("mouseover", (event) => {
@@ -82,13 +115,11 @@ export function renderOverview() {
     .on("mousemove", (event) => moveTooltip(tooltip, event))
     .on("mouseout", () => hideTooltip(tooltip));
 
-  restG.append("circle")
-    .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
-    .attr("fill", "#E5E7EB").attr("stroke", "#D1D5DB").attr("stroke-width", 1);
+  addSparkline(restG, lx, cy, "Rest", "#9CA3AF");
   restG.append("text")
-    .attr("x", lx + 16).attr("y", cy)
+    .attr("x", lx + TEXT_OFFSET).attr("y", cy)
     .attr("dominant-baseline", "middle")
-    .style("font-size", "14px").style("fill", "#374151").style("font-weight", "600")
+    .style("font-size", "14px").style("fill", "#6B7280").style("font-weight", "700")
     .text("Rest");
   restG.append("rect")
     .attr("x", lx).attr("y", cy - 10)
@@ -97,7 +128,7 @@ export function renderOverview() {
   lx += restItemW;
 
   PHASE_SCALE.filter(p => usedNames.has(p.name)).forEach(p => {
-    const itemW = 16 + p.label.length * 7 + 18;
+    const itemW = TEXT_OFFSET + p.label.length * 7 + ITEM_TRAIL;
     const itemG = legBarG.append("g")
       .style("cursor", "default")
       .on("mouseover", (event) => {
@@ -108,13 +139,11 @@ export function renderOverview() {
       .on("mousemove", (event) => moveTooltip(tooltip, event))
       .on("mouseout", () => hideTooltip(tooltip));
 
-    itemG.append("circle")
-      .attr("cx", lx + 6).attr("cy", cy).attr("r", 6)
-      .attr("fill", p.bg).attr("opacity", 0.9);
+    addSparkline(itemG, lx, cy, p.name, p.bg);
     itemG.append("text")
-      .attr("x", lx + 16).attr("y", cy)
+      .attr("x", lx + TEXT_OFFSET).attr("y", cy)
       .attr("dominant-baseline", "middle")
-      .style("font-size", "14px").style("fill", "#374151").style("font-weight", "600")
+      .style("font-size", "14px").style("fill", p.bg).style("font-weight", "700")
       .text(p.label);
 
     // invisible hit area

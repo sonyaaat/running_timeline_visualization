@@ -43,6 +43,16 @@
 }
 
 /* Phase narrative */
+@keyframes narrativeCardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes narrativeBorderGrow {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
 #phase-narrative-block {
   display: flex;
   flex-wrap: wrap;
@@ -53,27 +63,80 @@
 }
 
 .phase-narrative-card {
+  position: relative;
   flex: 1 1 220px;
   max-width: 300px;
-  border-top: 3px solid var(--phase-color);
-  padding: 16px 20px 18px;
+  padding: 14px 18px 16px;
   background: white;
   border-radius: 0 0 8px 8px;
+  overflow: hidden;
+  opacity: 0;
+  animation: narrativeCardIn 0.4s ease forwards;
+  animation-delay: var(--card-delay, 0ms);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.phase-narrative-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* Animated top border drawn left-to-right */
+.phase-narrative-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--phase-color);
+  animation: narrativeBorderGrow 0.5s ease forwards;
+  animation-delay: var(--card-delay, 0ms);
+}
+
+.phase-narrative-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.phase-narrative-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .phase-narrative-name {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 10px;
+  letter-spacing: 0.1em;
+}
+
+.phase-narrative-tag {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.4;
+  margin-bottom: 6px;
 }
 
 .phase-narrative-desc {
   margin: 0;
-  font-size: 14px;
-  color: #6B7280;
-  line-height: 1.65;
+  font-size: 12px;
+  color: #9CA3AF;
+  line-height: 1.6;
+}
+
+.phase-sparkline-wrap {
+  margin-top: 12px;
+  border-top: 1px solid #F3F4F6;
+  padding-top: 8px;
+}
+
+.phase-sparkline-svg {
+  display: block;
+  width: 100%;
+  height: 44px;
 }
 
 /* Phase segments in zoom view */

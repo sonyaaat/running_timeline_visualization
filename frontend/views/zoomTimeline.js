@@ -7,7 +7,7 @@ import { renderWeekDetail } from "./weekDetail.js";
 const STRIP_H      = 164;
 const STRIP_DIVIDER = 56; // colored top zone / white badge zone boundary
 const CHART_H      = 260;
-const WEEK_LABEL_H = 56;
+const WEEK_LABEL_H = 70;
 const LEGEND_H     = 44;
 const MARGIN       = { top: 16, right: 20, bottom: 10, left: 80 };
 
@@ -67,12 +67,40 @@ export function renderDetail(weekStart, weekEnd) {
 
   // ── Phase narrative ──
   const PHASE_DESCRIPTIONS = {
-    "Building":   "Volume is growing week over week. The body is adapting to increasing load — a preparation stage before peak training.",
-    "Peak":       "Highest training load of the cycle. Volume is at maximum and stable. Typically the hardest period before a race.",
-    "Base":       "Steady, moderate volume. No clear growth or drop. Maintaining fitness and consistency — the most common phase.",
-    "Recovery":   "Volume is significantly below normal. Usually follows a peak or race, or reflects illness / low motivation.",
-    "Sharpening": "Volume drops while pace improves. Classic pre-race tapering — less km but higher quality. Body is getting sharp.",
+    "Building":   { icon: "↗", tag: "Volume growing week over week", detail: "The body is adapting to increasing load — a preparation stage before peak training.",   sparkline: [20, 28, 38, 50, 60, 70, 82] },
+    "Peak":       { icon: "▲", tag: "Highest training load of the cycle", detail: "Volume is at maximum and stable. Typically the hardest period before a race.",       sparkline: [36, 58, 76, 92, 76, 58, 36] },
+    "Base":       { icon: "→", tag: "Steady, moderate volume", detail: "No clear growth or drop — maintaining fitness and consistency.",                                  sparkline: [54, 58, 52, 56, 55, 59, 54] },
+    "Recovery":   { icon: "↘", tag: "Volume significantly below normal", detail: "Usually follows a peak or race, or reflects illness / low motivation.",                 sparkline: [78, 32, 18, 14, 16, 22, 30] },
+    "Sharpening": { icon: "⚡", tag: "Volume drops, pace improves", detail: "Classic pre-race tapering — less km but higher quality. Body is getting sharp.",            sparkline: [88, 82, 74, 64, 52, 40, 30] },
   };
+
+  function makeSparklineSVG(data, color) {
+    const W = 200, H = 44, pad = 4;
+    const max = Math.max(...data), min = Math.min(...data), range = max - min || 1;
+    const pts = data.map((v, i) => [
+      pad + (i / (data.length - 1)) * (W - pad * 2),
+      H - pad - ((v - min) / range) * (H - pad * 2 - 4)
+    ]);
+    // smooth bezier through points
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const cx = (pts[i-1][0] + pts[i][0]) / 2;
+      d += ` C${cx.toFixed(1)},${pts[i-1][1].toFixed(1)} ${cx.toFixed(1)},${pts[i][1].toFixed(1)} ${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)}`;
+    }
+    const area = `${d} L${pts[pts.length-1][0].toFixed(1)},${H} L${pts[0][0].toFixed(1)},${H} Z`;
+    const gid  = `sg${color.replace(/[^a-f0-9]/gi,'')}`;
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="phase-sparkline-svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.22"/>
+          <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${pts.map((pt, i) => i === pts.length - 1 || i === 0 ? `<circle cx="${pt[0].toFixed(1)}" cy="${pt[1].toFixed(1)}" r="3" fill="${color}" opacity="0.7"/>` : '').join('')}
+    </svg>`;
+  }
   const narrativeEl = document.getElementById("phase-narrative-block");
   if (narrativeEl) {
     const activeInRange = phasesInRange.filter(p => p.type === "Active");
@@ -86,13 +114,20 @@ export function renderDetail(weekStart, weekEnd) {
     if (uniqueActive.length === 0) {
       narrativeEl.innerHTML = "";
     } else {
-      const cards = uniqueActive.map(p => {
+      const cards = uniqueActive.map((p, i) => {
         const color    = phaseColor(p.name);
         const txtColor = phaseTextColor(p.name);
-        const desc     = PHASE_DESCRIPTIONS[p.name] ?? "";
-        return `<div class="phase-narrative-card" style="--phase-color:${color}">
-          <div class="phase-narrative-name" style="color:${txtColor}">${p.name}</div>
-          ${desc ? `<p class="phase-narrative-desc">${desc}</p>` : ""}
+        const info     = PHASE_DESCRIPTIONS[p.name];
+        const delay    = `${i * 90}ms`;
+        const sparkSVG = info?.sparkline ? makeSparklineSVG(info.sparkline, color) : "";
+        return `<div class="phase-narrative-card" style="--phase-color:${color};--phase-text:${txtColor};--card-delay:${delay}">
+          <div class="phase-narrative-header">
+            <span class="phase-narrative-icon" style="color:${color}">${info?.icon ?? ""}</span>
+            <span class="phase-narrative-name" style="color:${txtColor}">${p.name}</span>
+          </div>
+          ${info ? `<div class="phase-narrative-tag">${info.tag}</div>
+          <p class="phase-narrative-desc">${info.detail}</p>` : ""}
+          ${sparkSVG ? `<div class="phase-sparkline-wrap">${sparkSVG}</div>` : ""}
         </div>`;
       }).join("");
       narrativeEl.innerHTML = cards;
@@ -517,6 +552,20 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   activeInRange.forEach(drawStripSeg);
   inactiveInRange.forEach(drawStripSeg);
 
+  // ── Phase background tints (chart area only) ──
+  const chartBgH = STRIP_H + CHART_H;
+  activeInRange.forEach(phase => {
+    const x1 = x(Math.max(phase.week_start, weekStart));
+    const x2 = x(Math.min(phase.week_end + 1, weekEnd + 1));
+    if (x2 <= x1) return;
+    root.append("rect")
+      .attr("x", x1).attr("y", STRIP_H)
+      .attr("width", x2 - x1).attr("height", CHART_H)
+      .attr("fill", phaseColor(phase.name))
+      .attr("opacity", 0.07)
+      .style("pointer-events", "none");
+  });
+
   // ── Phase boundary lines (full height: strip + chart + week labels) ──
   const fullH = STRIP_H + CHART_H + WEEK_LABEL_H;
   phasesInRange.forEach(phase => {
@@ -530,7 +579,6 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         .attr("y1", 0).attr("y2", fullH)
         .attr("stroke", "#D1D5DB")
         .attr("stroke-width", 1)
-        .attr("stroke-dasharray", "4 3")
         .style("pointer-events", "none");
     });
   });
@@ -562,9 +610,9 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
     chartG.append("line")
       .attr("x1", px).attr("x2", px)
       .attr("y1", 0).attr("y2", CHART_H)
-      .attr("stroke", mb.month === 0 ? "#C8CAD0" : "#E2E4E8")
-      .attr("stroke-width", mb.month === 0 ? 1 : 0.8)
-      .attr("stroke-dasharray", "3 3")
+      .attr("stroke", mb.month === 0 ? "#9CA3AF" : "#E2E4E8")
+      .attr("stroke-width", mb.month === 0 ? 1.5 : 0.8)
+      .attr("stroke-dasharray", mb.month === 0 ? "4 3" : "3 3")
       .style("pointer-events", "none");
   });
 
@@ -1066,9 +1114,17 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   const axisG = root.append("g")
     .attr("transform", `translate(0,${STRIP_H + CHART_H})`);
 
-  const multiYear = new Set(monthBoundaries.map(mb => mb.year)).size > 1;
-  const DAY_H  = 22;   // day-numbers row height
-  const BAND_H = 24;   // month band height
+  const DAY_H  = 18;   // day-numbers row height
+  const BAND_H = 20;   // month band height
+  const YEAR_H = 20;   // year band height
+
+  // Pre-compute year boundaries
+  const yearBoundaries = [];
+  { let lastYr = null;
+    monthBoundaries.forEach(mb => {
+      if (mb.year !== lastYr) { yearBoundaries.push({ i: mb.i, year: mb.year }); lastYr = mb.year; }
+    });
+  }
 
   // Axis baseline
   axisG.append("line")
@@ -1076,8 +1132,9 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
     .attr("y1", 0).attr("y2", 0)
     .attr("stroke", "#C8CAD0").attr("stroke-width", 1);
 
-  // ── Month bands (drawn first so day labels sit on top) ──
+  // ── Month bands (middle row) ──
   const bandY = DAY_H + 2;
+  const yearY = bandY + BAND_H + 2;
 
   monthBoundaries.forEach((mb, idx) => {
     const px1    = mb.i * barStep;
@@ -1103,33 +1160,52 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
     if (spanPx < 28) return;
 
-    // Month name — full if space allows, short otherwise; include year when needed
+    // Month name — no year suffix, year is shown in the dedicated year row below
     const fullName  = mb.date.toLocaleDateString("en-US", { month: "long" });
     const shortName = mb.date.toLocaleDateString("en-US", { month: "short" });
-    const yr        = mb.date.getFullYear();
-    const needYear  = multiYear || mb.month === 0 || idx === 0;
-
-    let label;
-    if (needYear) {
-      label = spanPx >= 140 ? `${fullName} ${yr}`
-            : spanPx >= 72  ? `${shortName} ${yr}`
-            : spanPx >= 36  ? shortName
-            : "";
-    } else {
-      label = spanPx >= 100 ? fullName
-            : spanPx >= 36  ? shortName
-            : "";
-    }
-
+    const label = spanPx >= 100 ? fullName : spanPx >= 36 ? shortName : "";
     if (!label) return;
 
     axisG.append("text")
       .attr("x", px1 + spanPx / 2).attr("y", bandY + BAND_H / 2)
       .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
       .style("font-size", spanPx >= 100 ? "12px" : "11px")
-      .style("font-weight", "700")
+      .style("font-weight", "600")
       .style("fill", "#374151")
       .text(label);
+  });
+
+  // ── Year bands (bottom row) — dark background, white text, bold year numbers ──
+  const yearPalette = ["#334155", "#1e3a5f"];
+  yearBoundaries.forEach((yb, idx) => {
+    const px1 = yb.i * barStep;
+    const px2 = idx + 1 < yearBoundaries.length
+      ? yearBoundaries[idx + 1].i * barStep
+      : innerW;
+    const spanPx = px2 - px1;
+    if (spanPx < 2) return;
+
+    axisG.append("rect")
+      .attr("x", px1).attr("y", yearY)
+      .attr("width", spanPx).attr("height", YEAR_H)
+      .attr("fill", yearPalette[idx % yearPalette.length]);
+
+    // Strong year boundary line through all rows
+    if (yb.i > 0) {
+      axisG.append("line")
+        .attr("x1", px1).attr("x2", px1)
+        .attr("y1", 0).attr("y2", yearY + YEAR_H)
+        .attr("stroke", "#1F2937").attr("stroke-width", 2);
+    }
+
+    if (spanPx < 24) return;
+    axisG.append("text")
+      .attr("x", px1 + spanPx / 2).attr("y", yearY + YEAR_H / 2)
+      .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+      .style("font-size", spanPx >= 80 ? "12px" : "10px")
+      .style("font-weight", "700")
+      .style("fill", "#FFFFFF")
+      .text(yb.year);
   });
 
   // ─────────────────────────────────────────
