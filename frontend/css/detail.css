@@ -1255,7 +1255,7 @@
 .wd-zone-rows {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin-top: 4px;
 }
 
@@ -1274,22 +1274,19 @@
 .wd-zone-row-title {
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
 }
 
 .wd-zone-row-desc {
-  font-size: 15px;
+  font-size: 13px;
   color: #6B7280;
   font-weight: 400;
-  padding-left: 19px;
 }
 
 .wd-zone-row-bar-line {
   display: grid;
-  grid-template-columns: 80px 1fr 36px 52px;
+  grid-template-columns: 1fr 36px 52px;
   align-items: center;
   gap: 10px;
-  padding-left: 19px;
 }
 
 .wd-zone-row-range {

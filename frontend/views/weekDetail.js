@@ -38,21 +38,17 @@ function buildThresholds(activities) {
 
 // Returns zone name + color for a given average HR
 function hrZone(hr, t) {
-  if (!hr) return { name: "no HR",    label: "no HR",           color: "#9CA3AF" };
-  if (hr < t.hr.easy)      return { name: "easy",      label: "easy pace",       color: "#60A5FA" };
-  if (hr < t.hr.aerobic)   return { name: "aerobic",   label: "steady base",     color: "#34D399" };
-  if (hr < t.hr.tempo)     return { name: "tempo",     label: "comfortably hard", color: "#FBBF24" };
-  if (hr < t.hr.threshold) return { name: "threshold", label: "pushing hard",    color: "#F97316" };
-  return                          { name: "hard",       label: "all-out effort",  color: "#EF4444" };
+  if (!hr) return { name: "no HR",    label: "no HR",            color: "#9CA3AF", desc: "No heart rate data was recorded for this run." };
+  if (hr < t.hr.easy)      return { name: "easy",      label: "easy pace",        color: "#5aafde", desc: "A relaxed, easy run. You could hold a full conversation the whole way through." };
+  if (hr < t.hr.aerobic)   return { name: "aerobic",   label: "steady base",      color: "#2e8fc2", desc: "A comfortable but purposeful effort. Breathing is heavier, but you're still in control." };
+  if (hr < t.hr.tempo)     return { name: "tempo",     label: "comfortably hard", color: "#e8c030", desc: "A solid, challenging effort. You could speak in short sentences, but not hold a full conversation." };
+  if (hr < t.hr.threshold) return { name: "threshold", label: "pushing hard",     color: "#e87d30", desc: "A tough run. Breathing hard — you could manage a few words, but not much more." };
+  return                          { name: "hard",       label: "all-out effort",   color: "#e05050", desc: "Maximum effort. Everything you had — hard to say anything at all." };
 }
 
-// Returns badge label or null
-function runBadge(km, hr, t) {
-  const zone = hrZone(hr, t);
-  if (km >= t.dist.long)                       return "LONG";
-  if (zone.name === "hard" || zone.name === "threshold") return "HARD";
-  if (km <= t.dist.short && (zone.name === "easy" || zone.name === "aerobic")) return "EASY";
-  return null;
+// Returns true if run qualifies as long
+function isLongRun(km, t) {
+  return km >= t.dist.long;
 }
 
 export function renderWeekDetail(weekIdx) {
@@ -133,20 +129,18 @@ export function renderWeekDetail(weekIdx) {
       <div class="wd-legend-group">
         <span class="wd-legend-title">HR zone</span>
         <div class="wd-legend-items">
-          <span class="wd-legend-item" data-wd-tip="No HR|#9CA3AF|No heart rate recorded for this run."><span class="wd-legend-dot" style="background:#9CA3AF"></span>No HR</span>
-          <span class="wd-legend-item" data-wd-tip="Easy|#60A5FA|HR below 25th percentile. Comfortable, recovery-level effort."><span class="wd-legend-dot" style="background:#60A5FA"></span>Easy</span>
-          <span class="wd-legend-item" data-wd-tip="Aerobic|#34D399|HR at 25–50th percentile. Steady aerobic base effort."><span class="wd-legend-dot" style="background:#34D399"></span>Aerobic</span>
-          <span class="wd-legend-item" data-wd-tip="Tempo|#FBBF24|HR at 50–75th percentile. Comfortably hard, lactate threshold zone."><span class="wd-legend-dot" style="background:#FBBF24"></span>Tempo</span>
-          <span class="wd-legend-item" data-wd-tip="Threshold|#F97316|HR at 75–90th percentile. Hard effort near lactate threshold."><span class="wd-legend-dot" style="background:#F97316"></span>Threshold</span>
-          <span class="wd-legend-item" data-wd-tip="Hard|#EF4444|HR above 90th percentile. Maximum intensity effort."><span class="wd-legend-dot" style="background:#EF4444"></span>Hard</span>
+          <span class="wd-legend-item" data-wd-tip="no HR|#9CA3AF|No heart rate data was recorded for this run."><span class="wd-legend-dot" style="background:#9CA3AF"></span>no HR</span>
+          <span class="wd-legend-item" data-wd-tip="easy pace|#5aafde|A relaxed, easy run. You could hold a full conversation the whole way through."><span class="wd-legend-dot" style="background:#5aafde"></span>easy pace</span>
+          <span class="wd-legend-item" data-wd-tip="steady base|#2e8fc2|A comfortable but purposeful effort. Breathing is heavier, but you're still in control."><span class="wd-legend-dot" style="background:#2e8fc2"></span>steady base</span>
+          <span class="wd-legend-item" data-wd-tip="comfortably hard|#e8c030|A solid, challenging effort. You could speak in short sentences, but not hold a full conversation."><span class="wd-legend-dot" style="background:#e8c030"></span>comfortably hard</span>
+          <span class="wd-legend-item" data-wd-tip="pushing hard|#e87d30|A tough run. Breathing hard — you could manage a few words, but not much more."><span class="wd-legend-dot" style="background:#e87d30"></span>pushing hard</span>
+          <span class="wd-legend-item" data-wd-tip="all-out effort|#e05050|Maximum effort. Everything you had — hard to say anything at all."><span class="wd-legend-dot" style="background:#e05050"></span>all-out effort</span>
         </div>
       </div>
       <div class="wd-legend-group wd-legend-group--right">
         <span class="wd-legend-title">Run type</span>
         <div class="wd-legend-items">
-          <span class="wd-legend-item" data-wd-tip="EASY|#60A5FA|Short, low-intensity run — distance below 25th percentile, easy or aerobic zone."><span class="wd-legend-badge" style="background:#60A5FA">EASY</span></span>
-          <span class="wd-legend-item" data-wd-tip="LONG|#34D399|Long run — distance at or above 80th percentile of all your runs."><span class="wd-legend-badge" style="background:#34D399">LONG</span></span>
-          <span class="wd-legend-item" data-wd-tip="HARD|#EF4444|High-intensity run — threshold or max HR zone effort."><span class="wd-legend-badge" style="background:#EF4444">HARD</span></span>
+          <span class="wd-legend-item" data-wd-tip="LONG|#a78bfa|One of your longer runs — great for building endurance and base fitness."><span class="wd-legend-badge" style="background:#a78bfa;color:#fff">LONG</span></span>
         </div>
       </div>
     </div>
@@ -165,6 +159,22 @@ export function renderWeekDetail(weekIdx) {
       showTooltip(wdTooltip, event,
         `<div style="font-weight:700;font-size:14px;color:${color};margin-bottom:6px">${title}</div>
          <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:220px">${text}</div>`);
+    });
+    el.addEventListener("mousemove", (event) => moveTooltip(wdTooltip, event));
+    el.addEventListener("mouseleave", () => hideTooltip(wdTooltip));
+  });
+
+  // ── Run card tooltips ──
+  content.querySelectorAll("[data-run-tip]").forEach(el => {
+    el.addEventListener("mouseenter", (event) => {
+      const { zoneLabel, zoneColor, zoneDesc, isLong } = JSON.parse(el.dataset.runTip);
+      const longLine = isLong
+        ? `<div style="margin-top:8px;display:flex;align-items:center;gap:6px"><span style="background:#a78bfa;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px">LONG</span><span style="color:#6B7280;font-size:12px">One of your longer runs — great for building endurance.</span></div>`
+        : "";
+      showTooltip(wdTooltip, event,
+        `<div style="font-weight:700;font-size:14px;color:${zoneColor};margin-bottom:6px">${zoneLabel}</div>
+         <div style="color:#6B7280;font-size:12px;line-height:1.6;max-width:240px">${zoneDesc}</div>
+         ${longLine}`);
     });
     el.addEventListener("mousemove", (event) => moveTooltip(wdTooltip, event));
     el.addEventListener("mouseleave", () => hideTooltip(wdTooltip));
@@ -198,11 +208,15 @@ export function renderWeekDetail(weekIdx) {
   section.style.display = "block";
   setTimeout(() => document.getElementById("week-detail-content").scrollIntoView({ behavior: "smooth", block: "center" }), 80);
 
+  // Tour: show on first visit
+  setTimeout(() => maybeStartWeekTour(), 700);
+
   // Click on run card → open detail panel below grid
   let activeRunId = null;
   content.querySelectorAll(".wd-run-block[data-activity-id]").forEach(block => {
     block.style.cursor = "pointer";
     block.addEventListener("click", async () => {
+      document.dispatchEvent(new CustomEvent("wd-run-click"));
       const id = block.dataset.activityId;
       const panel = document.getElementById("wd-run-detail-panel");
 
@@ -245,6 +259,7 @@ export function renderWeekDetail(weekIdx) {
         renderSplitsChart(document.getElementById("wd-splits-chart"), data);
 
         setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+        setTimeout(() => maybeStartRunDetailTour(), 800);
       } catch(e) {
         panel.innerHTML = `<div class="wd-streams-error">Could not load chart: ${e.message}</div>`;
       }
@@ -302,8 +317,6 @@ function buildRunStats(a, t, weekAvgPace) {
   }
 
   const zone  = hrZone(a.average_heartrate, t);
-  const badge = runBadge(kmVal, a.average_heartrate, t);
-
   let paceCompare = "";
   if (runPace && weekAvgPace) {
     const diff = (runPace - weekAvgPace) / weekAvgPace;
@@ -312,18 +325,21 @@ function buildRunStats(a, t, weekAvgPace) {
     else if (diff > 0.03) paceCompare = `<span class="wd-pace-compare wd-pace-slower">${pct}% slower than week avg</span>`;
   }
 
+  const longBadge = isLongRun(kmVal, t)
+    ? `<span class="wd-badge" style="background:#a78bfa;color:#fff">LONG</span>`
+    : `<span class="wd-badge-placeholder"></span>`;
+
   const zoneHeader = zone.label
     ? `<div class="wd-zone-accent wd-zone-accent--inner" style="background:${zone.color}"><span class="wd-zone-label">${zone.label}</span></div>`
     : "";
-  const typeBadge = badge
-    ? `<span class="wd-badge" style="background:${zone.color}">${badge}</span>`
-    : `<span class="wd-badge-placeholder"></span>`;
-
+  const isLong = isLongRun(kmVal, t);
+  const tipData = JSON.stringify({ zoneLabel: zone.label, zoneColor: zone.color, zoneDesc: zone.desc, isLong })
+    .replace(/'/g, "&#39;");
   const actId = typeof a.id === "number" ? a.id : null;
   return `
-    <div class="wd-run-block"${actId ? ` data-activity-id="${actId}"` : ""}>
+    <div class="wd-run-block"${actId ? ` data-activity-id="${actId}"` : ""} data-run-tip='${tipData}'>
       ${zoneHeader}
-      ${typeBadge}
+      ${longBadge}
       <div class="wd-run-name">${a.name ?? "none"}</div>
       ${timeRange ? `<div class="wd-start-time">${timeRange}</div>` : ""}
       <div class="wd-distance">${km} km</div>
@@ -442,11 +458,11 @@ function renderSplitsChart(el, laps) {
   let hrDeviationHtml = "";
   if (hasHR) {
     const HR_ZONES = [
-      { name: "Easy",      min: 0,   max: 140, color: "#3B82F6", bg: "rgba(219,234,254,0.55)" },
-      { name: "Aerobic",   min: 140, max: 155, color: "#10B981", bg: "rgba(209,250,229,0.55)" },
-      { name: "Tempo",     min: 155, max: 165, color: "#F59E0B", bg: "rgba(254,243,199,0.55)" },
-      { name: "Threshold", min: 165, max: 175, color: "#F97316", bg: "rgba(255,237,213,0.55)" },
-      { name: "Hard",      min: 175, max: 999, color: "#EF4444", bg: "rgba(254,226,226,0.55)" },
+      { name: "Easy",      min: 0,   max: 140, color: "#5aafde", bg: "rgba(90,175,222,0.25)" },
+      { name: "Aerobic",   min: 140, max: 155, color: "#2e8fc2", bg: "rgba(46,143,194,0.25)" },
+      { name: "Tempo",     min: 155, max: 165, color: "#e8c030", bg: "rgba(232,192,48,0.25)" },
+      { name: "Threshold", min: 165, max: 175, color: "#e87d30", bg: "rgba(232,125,48,0.25)" },
+      { name: "Hard",      min: 175, max: 999, color: "#e05050", bg: "rgba(224,80,80,0.25)" },
     ];
     const hrData = fullLaps.filter(l => l.hr != null);
     const avgHR  = d3.mean(hrData, l => l.hr);
@@ -593,11 +609,11 @@ function renderSplitsChart(el, laps) {
 
   // ── Training zones breakdown ──
   const ZONES = [
-    { name: "Easy",      max: 140, color: "#60A5FA", hrRange: "< 140 bpm", desc: "Very light. Recovery run, warm-up." },
-    { name: "Aerobic",   max: 155, color: "#34D399", hrRange: "140–155 bpm", desc: "Base fitness. Sustainable long run." },
-    { name: "Tempo",     max: 165, color: "#FBBF24", hrRange: "155–165 bpm", desc: "Comfortably hard. Builds threshold." },
-    { name: "Threshold", max: 175, color: "#F97316", hrRange: "165–175 bpm", desc: "Race-pace effort. Hard to sustain." },
-    { name: "Hard",      max: 999, color: "#EF4444", hrRange: "> 175 bpm",  desc: "Maximum effort. Short bursts only." },
+    { name: "Easy",      max: 140, color: "#5aafde", bg: "rgba(90,175,222,0.25)",  hrRange: "< 140 bpm",    desc: "Very light. Recovery run, warm-up." },
+    { name: "Aerobic",   max: 155, color: "#2e8fc2", bg: "rgba(46,143,194,0.25)",  hrRange: "140–155 bpm", desc: "Base fitness. Sustainable long run." },
+    { name: "Tempo",     max: 165, color: "#e8c030", bg: "rgba(232,192,48,0.25)",  hrRange: "155–165 bpm", desc: "Comfortably hard. Builds threshold." },
+    { name: "Threshold", max: 175, color: "#e87d30", bg: "rgba(232,125,48,0.25)",  hrRange: "165–175 bpm", desc: "Race-pace effort. Hard to sustain." },
+    { name: "Hard",      max: 999, color: "#e05050", bg: "rgba(224,80,80,0.25)",   hrRange: "> 175 bpm",   desc: "Maximum effort. Short bursts only." },
   ];
   let effortHtml = "";
   if (hasHR) {
@@ -622,19 +638,17 @@ function renderSplitsChart(el, laps) {
     // zone rows — name | hr range | bar | % | km
     const zoneRows = activeZones.map(z => {
       const pct = z.km / totalKmWithHR * 100;
-      const extraMargin = (z.name === "Threshold" || z.name === "Hard") ? ' style="margin-top:14px"' : '';
-      return `<div class="wd-zone-row"${extraMargin}>
+      return `<div class="wd-zone-row" style="border-left:4px solid ${z.color};background:${z.bg};border-radius:8px;padding:10px 12px">
         <div class="wd-zone-row-header">
-          <span class="wd-effort-dot" style="background:${z.color}"></span>
-          <span class="wd-zone-row-title">${z.name}</span>
+          <span class="wd-zone-row-title" style="color:${z.color}">${z.name}</span>
+          <span class="wd-zone-row-range" style="margin-left:auto">${z.hrRange}</span>
         </div>
         <div class="wd-zone-row-desc">${z.desc}</div>
-        <div class="wd-zone-row-bar-line">
-          <span class="wd-zone-row-range">${z.hrRange}</span>
+        <div class="wd-zone-row-bar-line" style="padding-left:0">
           <div class="wd-zone-row-bar-wrap">
             <div class="wd-zone-row-bar" style="width:${pct}%;background:${z.color}"></div>
           </div>
-          <span class="wd-zone-row-pct">${pct.toFixed(0)}%</span>
+          <span class="wd-zone-row-pct" style="color:${z.color}">${pct.toFixed(0)}%</span>
           <span class="wd-zone-row-km">${z.km.toFixed(1)} km</span>
         </div>
       </div>`;
@@ -902,4 +916,257 @@ function renderSplitsChart(el, laps) {
     });
     row.addEventListener("mouseleave", () => { barTip.style.display = "none"; });
   });
+}
+
+// ─────────────────────────────────────────────────────────
+// Week Detail guided tour
+// ─────────────────────────────────────────────────────────
+const WEEK_TOUR_KEY = "wd_tour_v1";
+
+function maybeStartWeekTour() {
+  if (localStorage.getItem(WEEK_TOUR_KEY)) return;
+  _startWeekTour();
+}
+
+function _startWeekTour() {
+  const steps = [
+    {
+      getTarget: () => document.querySelector(".wd-grid"),
+      title: "This week's runs",
+      text: "All runs organised by day — distance, pace, and HR zone at a glance.",
+      position: "below",
+    },
+    {
+      getTarget: () => document.querySelector(".wd-run-block[data-activity-id]"),
+      title: "Run details",
+      text: "Click any run to see its splits, pace, and HR.",
+      position: "below",
+      interactive: true,
+    },
+  ];
+
+  let step = 0;
+  let runListener = null;
+  let autoCloseTimer = null;
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:9000;pointer-events:none;";
+  document.body.appendChild(overlay);
+
+  function getRect(getTarget) {
+    const t = getTarget();
+    if (!t) return null;
+    return t.getBoundingClientRect();
+  }
+
+  function showStep(idx) {
+    const s = steps[idx];
+    const r0 = getRect(s.getTarget);
+    if (!r0) { advance(); return; }
+
+    if (idx === 0) {
+      // Already scrolled to by renderWeekDetail — just render after a small delay
+      setTimeout(() => renderStep(idx), 60);
+    } else {
+      // Scroll target into view
+      const pageY = r0.top + window.scrollY;
+      window.scrollTo({ top: Math.max(0, pageY - window.innerHeight / 2 + r0.height / 2), behavior: "smooth" });
+      setTimeout(() => renderStep(idx), 360);
+    }
+  }
+
+  function renderStep(idx) {
+    const s = steps[idx];
+    const rect = getRect(s.getTarget);
+    if (!rect) { advance(); return; }
+
+    const PAD = 10;
+    const hl = rect.left - PAD;
+    const ht = rect.top  - PAD;
+    const hw = rect.width  + PAD * 2;
+    const hh = rect.height + PAD * 2;
+    const isLast = idx === steps.length - 1;
+
+    overlay.innerHTML = `
+      <div class="zt-tour-highlight" style="left:${hl}px;top:${ht}px;width:${hw}px;height:${hh}px;"></div>
+      <div class="zt-tour-card" id="wd-tour-card">
+        <div class="zt-tour-counter">${idx + 1} / ${steps.length}</div>
+        <div class="zt-tour-title">${s.title}</div>
+        <div class="zt-tour-text">${s.text}</div>
+        <div class="zt-tour-actions">
+          <button class="zt-tour-skip">Skip</button>
+          ${s.interactive
+            ? `<span class="zt-tour-hint">↓ click a run</span>`
+            : `<button class="zt-tour-next">${isLast ? "Done ✓" : "Next →"}</button>`}
+        </div>
+      </div>`;
+
+    // Position card
+    const card = document.getElementById("wd-tour-card");
+    const CARD_W = 280;
+    const CARD_H = 155;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top, left;
+
+    if (s.position === "below") {
+      top = ht + hh + 14;
+      if (top + CARD_H > vh - 16) top = ht - CARD_H - 14;
+    } else {
+      top = ht - CARD_H - 14;
+      if (top < 16) top = ht + hh + 14;
+    }
+    left = hl + hw / 2 - CARD_W / 2;
+    left = Math.max(16, Math.min(left, vw - CARD_W - 16));
+
+    card.style.top   = top  + "px";
+    card.style.left  = left + "px";
+    card.style.width = CARD_W + "px";
+
+    overlay.querySelector(".zt-tour-next")?.addEventListener("click", advance);
+    overlay.querySelector(".zt-tour-skip").addEventListener("click", endTour);
+
+    if (s.interactive) {
+      // Pulse the first run card
+      const firstRun = document.querySelector(".wd-run-block[data-activity-id]");
+      if (firstRun) {
+        const fr = firstRun.getBoundingClientRect();
+        const pulse = document.createElement("div");
+        pulse.className = "zt-tour-pulse-col";
+        pulse.style.cssText = `left:${fr.left}px;top:${fr.top}px;width:${fr.width}px;height:${fr.height}px;border-radius:8px;`;
+        overlay.appendChild(pulse);
+      }
+
+      if (runListener) document.removeEventListener("wd-run-click", runListener);
+      runListener = () => endTour();
+      document.addEventListener("wd-run-click", runListener, { once: true });
+
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      autoCloseTimer = setTimeout(() => endTour(), 3000);
+    }
+  }
+
+  function advance() {
+    step++;
+    if (step >= steps.length) endTour();
+    else showStep(step);
+  }
+
+  function endTour() {
+    if (runListener) document.removeEventListener("wd-run-click", runListener);
+    if (autoCloseTimer) clearTimeout(autoCloseTimer);
+    localStorage.setItem(WEEK_TOUR_KEY, "1");
+    overlay.remove();
+  }
+
+  showStep(0);
+}
+
+// ─────────────────────────────────────────────────────────
+// Run Detail guided tour
+// ─────────────────────────────────────────────────────────
+const RUN_TOUR_KEY = "wd_run_tour_v1";
+
+function maybeStartRunDetailTour() {
+  if (localStorage.getItem(RUN_TOUR_KEY)) return;
+  _startRunDetailTour();
+}
+
+function _startRunDetailTour() {
+  const steps = [
+    {
+      getTarget: () => document.querySelector(".wd-tabs-nav"),
+      title: "4 views of this run",
+      text: "Pace splits, HR zones, Heart Rate chart, and Efficiency — switch tabs to explore.",
+      position: "below",
+    },
+  ];
+
+  let step = 0;
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:9000;pointer-events:none;";
+  document.body.appendChild(overlay);
+
+  function getRect(getTarget) {
+    const t = getTarget();
+    if (!t) return null;
+    return t.getBoundingClientRect();
+  }
+
+  function showStep(idx) {
+    const s = steps[idx];
+    const r0 = getRect(s.getTarget);
+    if (!r0) { advance(); return; }
+
+    if (idx === 0) {
+      setTimeout(() => renderStep(idx), 60);
+    } else {
+      const pageY = r0.top + window.scrollY;
+      window.scrollTo({ top: Math.max(0, pageY - window.innerHeight / 2 + r0.height / 2), behavior: "smooth" });
+      setTimeout(() => renderStep(idx), 360);
+    }
+  }
+
+  function renderStep(idx) {
+    const s = steps[idx];
+    const rect = getRect(s.getTarget);
+    if (!rect) { advance(); return; }
+
+    const PAD = 10;
+    const hl = rect.left - PAD;
+    const ht = rect.top  - PAD;
+    const hw = rect.width  + PAD * 2;
+    const hh = rect.height + PAD * 2;
+    const isLast = idx === steps.length - 1;
+
+    overlay.innerHTML = `
+      <div class="zt-tour-highlight" style="left:${hl}px;top:${ht}px;width:${hw}px;height:${hh}px;"></div>
+      <div class="zt-tour-card" id="rd-tour-card">
+        <div class="zt-tour-counter">${idx + 1} / ${steps.length}</div>
+        <div class="zt-tour-title">${s.title}</div>
+        <div class="zt-tour-text">${s.text}</div>
+        <div class="zt-tour-actions">
+          <button class="zt-tour-skip">Skip</button>
+          <button class="zt-tour-next">${isLast ? "Done ✓" : "Next →"}</button>
+        </div>
+      </div>`;
+
+    const card = document.getElementById("rd-tour-card");
+    const CARD_W = 280;
+    const CARD_H = 155;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top, left;
+
+    if (s.position === "below") {
+      top = ht + hh + 14;
+      if (top + CARD_H > vh - 16) top = ht - CARD_H - 14;
+    } else {
+      top = ht - CARD_H - 14;
+      if (top < 16) top = ht + hh + 14;
+    }
+    left = hl + hw / 2 - CARD_W / 2;
+    left = Math.max(16, Math.min(left, vw - CARD_W - 16));
+
+    card.style.top   = top  + "px";
+    card.style.left  = left + "px";
+    card.style.width = CARD_W + "px";
+
+    overlay.querySelector(".zt-tour-next").addEventListener("click", advance);
+    overlay.querySelector(".zt-tour-skip").addEventListener("click", endTour);
+  }
+
+  function advance() {
+    step++;
+    if (step >= steps.length) endTour();
+    else showStep(step);
+  }
+
+  function endTour() {
+    localStorage.setItem(RUN_TOUR_KEY, "1");
+    overlay.remove();
+  }
+
+  showStep(0);
 }

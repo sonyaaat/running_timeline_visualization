@@ -24,6 +24,7 @@
       <span id="user-name"></span>
       <button id="btn-sync" onclick="runPipeline()">↻ Sync with Strava</button>
       <span id="sync-status"></span>
+      <button id="btn-tour" onclick="['zt_tour_v1','wd_tour_v1','wd_run_tour_v1'].forEach(k=>localStorage.removeItem(k));location.reload()">⟳ Guided tour</button>
       <button id="btn-logout" onclick="showLogoutModal()">Sign out</button>
     </div>
 

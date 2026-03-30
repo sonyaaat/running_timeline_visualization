@@ -226,6 +226,219 @@ export function renderDetail(weekStart, weekEnd) {
 
   document.removeEventListener("week-selected", _onWeekSelected);
   document.addEventListener("week-selected", _onWeekSelected);
+
+  // Show guided tour on first visit — wait for initial scroll to settle
+  setTimeout(() => maybeStartPhaseTour(), 950);
+}
+
+// ─────────────────────────────────────────────────────────
+// Phase Timeline guided tour
+// ─────────────────────────────────────────────────────────
+const TOUR_KEY = "zt_tour_v1";
+
+function maybeStartPhaseTour() {
+  if (localStorage.getItem(TOUR_KEY)) return;
+  _startPhaseTour();
+}
+
+function _getSvgZoneRect(yOffset, zoneH) {
+  const svgEl = document.querySelector("#zoom-timeline-chart svg");
+  if (!svgEl) return null;
+  const r = svgEl.getBoundingClientRect();
+  const attrW = parseFloat(svgEl.getAttribute("width")) || svgEl.clientWidth;
+  const attrH = parseFloat(svgEl.getAttribute("height")) || svgEl.clientHeight;
+  const sx = attrW > 0 ? r.width  / attrW : 1;
+  const sy = attrH > 0 ? r.height / attrH : 1;
+  return {
+    left:   r.left  + 80 * sx,
+    top:    r.top   + yOffset * sy,
+    width:  (attrW - 100) * sx,
+    height: zoneH * sy,
+  };
+}
+
+function _startPhaseTour() {
+  // step 3 & 4 target SVG zones: strip (phase bands) and bars (chart)
+  const steps = [
+    {
+      getTarget: () => document.getElementById("phase-narrative-block"),
+      title: "Phase analysis",
+      text: "Read about each selected phase — type, tag, and trend. Weekly stats are shown below.",
+      position: "below",
+      scroll: false,
+    },
+    {
+      getTarget: () => document.getElementById("zt-line-toggle"),
+      title: "Switch metric",
+      text: "Toggle between Distance, Pace, HR, or Efficiency to update the chart.",
+      position: "above",
+      scroll: false,
+      onLeave: () => {
+        // Ensure Distance bars are visible before the column-highlight step
+        const distBtn = document.getElementById("zt-dist-toggle");
+        if (distBtn && !distBtn.classList.contains("active")) distBtn.click();
+      },
+    },
+    {
+      getTarget: () => document.querySelector(".zt-tour-change-group"),
+      title: "Changes vs previous phase",
+      text: "Each badge shows how a metric shifted compared to the prior phase.",
+      position: "below",
+      scroll: true,
+      pad: 14,
+    },
+    {
+      getTarget: () => _getSvgZoneRect(16 + 164, 260),
+      extraTarget: () => document.querySelector(".zt-tour-legend"),
+      title: "Weekly stats & intensity",
+      text: "Bars show volume per week. Colour = run intensity — easy, moderate, or hard.",
+      position: "above",
+      scroll: true,
+    },
+    {
+      getTarget: () => document.querySelector(".zt-tour-week-col"),
+      title: "Click a week",
+      text: "Try it — click any bar to see the individual runs for that week.",
+      position: "above",
+      scroll: true,
+      interactive: true, // tour ends on week click or 5s timeout
+    },
+  ];
+
+  let step = 0;
+  let weekListener = null;
+  let autoCloseTimer = null;
+
+  const overlay = document.createElement("div");
+  overlay.id = "zt-tour-overlay";
+  document.body.appendChild(overlay);
+
+  function getRect(getTarget) {
+    const t = getTarget();
+    if (!t) return null;
+    if (typeof t.getBoundingClientRect === "function") return t.getBoundingClientRect();
+    return t;
+  }
+
+  function showStep(idx) {
+    const s = steps[idx];
+
+    if (s.scroll) {
+      const r0 = getRect(s.getTarget);
+      if (!r0) { advance(); return; }
+      const pageY = r0.top + window.scrollY;
+      const target = pageY - window.innerHeight / 2 + r0.height / 2;
+      window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      setTimeout(() => renderStep(idx), 360);
+    } else {
+      renderStep(idx);
+    }
+  }
+
+  function renderStep(idx) {
+    const s = steps[idx];
+    const rect = getRect(s.getTarget);
+    if (!rect) { advance(); return; }
+
+    const PAD = s.pad ?? 10;
+    const hl = rect.left - PAD;
+    const ht = rect.top  - PAD;
+    const hw = rect.width  + PAD * 2;
+    const hh = rect.height + PAD * 2;
+
+    let extraHlHTML = "";
+    if (s.extraTarget) {
+      const er = getRect(s.extraTarget);
+      if (er) {
+        const ep = 6;
+        extraHlHTML = `<div class="zt-tour-highlight zt-tour-highlight--extra"
+          style="left:${er.left - ep}px;top:${er.top - ep}px;width:${er.width + ep * 2}px;height:${er.height + ep * 2}px;"></div>`;
+      }
+    }
+
+    overlay.innerHTML = `
+      <div class="zt-tour-highlight"
+           style="left:${hl}px;top:${ht}px;width:${hw}px;height:${hh}px;"></div>
+      ${extraHlHTML}
+      <div class="zt-tour-card" id="zt-tour-card">
+        <div class="zt-tour-counter">${idx + 1} / ${steps.length}</div>
+        <div class="zt-tour-title">${s.title}</div>
+        <div class="zt-tour-text">${s.text}</div>
+        <div class="zt-tour-actions">
+          <button class="zt-tour-skip">Skip</button>
+          ${s.interactive
+            ? `<span class="zt-tour-hint">↓ click the bar</span>`
+            : `<button class="zt-tour-next">${idx === steps.length - 1 ? "Done ✓" : "Next →"}</button>`}
+        </div>
+      </div>`;
+
+    positionCard(hl, ht, hw, hh, s.position);
+
+    if (!s.interactive) {
+      overlay.querySelector(".zt-tour-next").onclick = advance;
+    }
+    overlay.querySelector(".zt-tour-skip").onclick = endTour;
+
+    // For the interactive step: pulse the column, listen for click, auto-close after 5s
+    if (s.interactive) {
+      // Pulsing column overlay
+      const colEl = document.querySelector(".zt-tour-week-col");
+      if (colEl) {
+        const cr = colEl.getBoundingClientRect();
+        const pulse = document.createElement("div");
+        pulse.className = "zt-tour-pulse-col";
+        pulse.style.cssText = `left:${cr.left}px;top:${cr.top}px;width:${cr.width}px;height:${cr.height}px;`;
+        overlay.appendChild(pulse);
+      }
+
+      if (weekListener) document.removeEventListener("zt-week-bar-click", weekListener);
+      weekListener = () => endTour();
+      document.addEventListener("zt-week-bar-click", weekListener, { once: true });
+
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      autoCloseTimer = setTimeout(() => endTour(), 3000);
+    }
+  }
+
+  function positionCard(hl, ht, hw, hh, position) {
+    const card = document.getElementById("zt-tour-card");
+    const CARD_W = 280;
+    const CARD_H = 155;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top, left;
+
+    if (position === "below") {
+      top = ht + hh + 14;
+      if (top + CARD_H > vh - 16) top = ht - CARD_H - 14;
+    } else {
+      top = ht - CARD_H - 14;
+      if (top < 16) top = ht + hh + 14;
+    }
+    left = hl + hw / 2 - CARD_W / 2;
+    left = Math.max(16, Math.min(left, vw - CARD_W - 16));
+
+    card.style.top   = top  + "px";
+    card.style.left  = left + "px";
+    card.style.width = CARD_W + "px";
+  }
+
+  function advance() {
+    const current = steps[step];
+    if (current.onLeave) current.onLeave();
+    step++;
+    if (step >= steps.length) endTour();
+    else showStep(step);
+  }
+
+  function endTour() {
+    if (weekListener) document.removeEventListener("zt-week-bar-click", weekListener);
+    if (autoCloseTimer) clearTimeout(autoCloseTimer);
+    localStorage.setItem(TOUR_KEY, "1");
+    overlay.remove();
+  }
+
+  showStep(0);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -307,6 +520,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
   const activeInRange   = phasesInRange.filter(p => p.type === "Active");
   const inactiveInRange = phasesInRange.filter(p => p.type === "Inactive");
+  let _firstBadgeMarked = false; // used to tag one badge for the tour spotlight
 
   // Build prev-active-phase lookup directly from phase stats (more reliable than breakpoints)
   const allActivePhases = (APP_STATE.phases || phasesInRange)
@@ -498,6 +712,10 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
         const badgeG = segG.append("g")
           .attr("clip-path", `url(#${clipId})`)
           .style("pointer-events", "none");
+        if (!_firstBadgeMarked) {
+          badgeG.attr("class", "zt-tour-change-group");
+          _firstBadgeMarked = true;
+        }
 
         changeMetrics.forEach((m, idx) => {
           const isGood    = m.bigger ? m.pct > 0 : m.pct < 0;
@@ -675,6 +893,10 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
 
   const selWeekLocal = APP_STATE.selectedWeekIdx != null ? APP_STATE.selectedWeekIdx - weekStart : null;
 
+  // Tour: mark the first week at/after midpoint that has runs
+  let _tourWeekColMarked = false;
+  const _tourWeekColTarget = Math.floor(nWeeks / 2);
+
   visWeekly.forEach((w, i) => {
     const ph = phases.find(p => p.id === w.phase_id);
     const opacity = selWeekLocal != null
@@ -767,15 +989,21 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
       </div>
     `;
 
-    runG.append("rect")
+    const colOverlay = runG.append("rect")
       .attr("x", bx).attr("y", 0)
       .attr("width", barW).attr("height", CHART_H)
       .attr("fill", "transparent")
-      .style("cursor", ph && ph.type === "Active" ? "pointer" : "default")
+      .style("cursor", ph && ph.type === "Active" ? "pointer" : "default");
+    if (!_tourWeekColMarked && i >= _tourWeekColTarget) {
+      colOverlay.attr("class", "zt-tour-week-col");
+      _tourWeekColMarked = true;
+    }
+    colOverlay
       .on("mouseover", (event) => showTooltip(tooltip, event, tooltipHTML))
       .on("mousemove", (event) => moveTooltip(tooltip, event))
       .on("mouseout", () => hideTooltip(tooltip))
       .on("click", () => {
+        document.dispatchEvent(new CustomEvent("zt-week-bar-click"));
         if (APP_STATE.selectedWeekIdx === weekStart + i) {
           APP_STATE.selectedWeekIdx = null;
           document.getElementById("week-detail-section").style.display = "none";
@@ -1212,6 +1440,7 @@ function renderTimeline(weekStart, weekEnd, phasesInRange, bpInRange) {
   // ROW 4 — Phase legend
   // ─────────────────────────────────────────
   const legendG = root.append("g")
+    .attr("class", "zt-tour-legend")
     .attr("transform", `translate(0,${STRIP_H + CHART_H + WEEK_LABEL_H})`);
 
   const lcy = 14; // items row y — tight, no extra gap
