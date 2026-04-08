@@ -28,6 +28,10 @@ python3 -m backend.app
 
 After the server starts, open the printed URL in your browser to use the visualization.
 
+## Project demo
+
+https://youtu.be/l5WsTX0QSkE?si=gec4WAtoum5FGE_t
+
 ## WebApp Screenshots
 
 Overview of weekly training load:
